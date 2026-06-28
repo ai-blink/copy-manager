@@ -28,8 +28,8 @@ npm run dev      # electron-vite dev (HMR) — 또는 npm run build && npm start
 | M1 | `npm run dev` 실행 | 앱이 기동되고 콘솔 에러 없음 | ✅ 2026-06-28 기동·무에러 |
 | M2 | 창 스타일 확인 | **테두리 없음(frameless)** · 항상 위(alwaysOnTop) · 배경 반투명(transparent) · 둥근 모서리 | ✅ 스크린샷 확인(frameless·다크 반투명). alwaysOnTop 별도 미확인 |
 | M3 | 전역 핫키 토글 | 다른 앱에 포커스가 있어도 **Ctrl+Alt+V** 누르면 창이 뜨고, 다시 누르면 숨음 | ✅ 핫키로 창 등장 확인(show:false 시작 → 핫키로 표시됨). 재누름 숨김은 미확인 |
-| M4 | blur → 자동숨김 | 창이 뜬 상태에서 **바깥(다른 앱)을 클릭**하면 창이 사라짐 | ⬜ |
-| M5 | 핀 유지(핀이면 안 닫힘) | DevTools 콘솔에서 `copyManager.setPinned(true)` 실행 후 바깥 클릭 → **창 유지**. `copyManager.setPinned(false)` 후 바깥 클릭 → 숨음 | ⬜ |
+| M4 | 기본 창 유지(D5 갱신) | 창이 뜬 상태에서 **바깥(다른 앱)을 클릭해도 안 닫힘**(기본 keepOpen). 닫기는 핫키 재누름 또는 헤더 **✕** | ⬜ |
+| M5 | 자동숨김 옵션 | 설정 ⚙ → **"창 유지" 체크 해제** 후 바깥 클릭 → **창 숨김**(blur→hide). 다시 체크하면 유지. 헤더 📌로도 빠른 토글 | ⬜ |
 
 > M3 핫키 등록 실패 로그(`전역 핫키 등록 실패`)가 보이면 다른 앱이 Ctrl+Alt+V 를 선점한 것 — 충돌 앱 종료 후 재시도.
 

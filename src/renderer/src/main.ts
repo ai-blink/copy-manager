@@ -15,6 +15,7 @@ const TYPE_LABEL: Record<ClipType, string> = {
 }
 
 let cols = 3 // D4: 한 줄 카드 수(설정 모달에서 2~5 변경). 시작값 3.
+let curKeepOpen = true // D5(갱신): 창 유지 여부. 설정 keepOpen 반영(applySettings).
 
 let items: ClipItem[] = [] // 최신이 앞(store 는 [old...new] 라 reverse)
 let tab = '전체'
@@ -398,6 +399,7 @@ function syncSettingsControls(s: AppSettings): void {
   document
     .querySelectorAll<HTMLElement>('#setModeRow .chip')
     .forEach((c) => c.classList.toggle('on', c.dataset['mode'] === s.remoteMode))
+  $<HTMLInputElement>('keepOpen').checked = s.keepOpen
   $<HTMLInputElement>('rebootReset').checked = s.rebootReset
 }
 
@@ -408,6 +410,10 @@ function applySettings(s: AppSettings): void {
   remote.setDwellMs(s.dwellMs)
   remote.setSpeed(s.scrollSpeed)
   remote.setMode(s.remoteMode)
+  curKeepOpen = s.keepOpen
+  const pinBtn = $('winPinBtn')
+  pinBtn.classList.toggle('on', s.keepOpen)
+  pinBtn.title = s.keepOpen ? '창 유지 켜짐 — 클릭하면 자동숨김' : '자동숨김 — 클릭하면 창 유지'
   syncSettingsControls(s)
   updateRowH()
 }
@@ -491,14 +497,13 @@ $('clearBtn').addEventListener('click', () => {
     void window.copyManager.clearUnpinned()
   )
 })
-let winPinned = false
-const winPinBtn = $('winPinBtn')
-winPinBtn.addEventListener('click', () => {
-  winPinned = !winPinned
-  window.copyManager.setPinned(winPinned) // D5: 창 자동숨김 토글
-  winPinBtn.classList.toggle('on', winPinned)
-  winPinBtn.title = winPinned ? '창 고정됨(클릭하여 자동숨김)' : '창 고정(자동숨김 끄기)'
-})
+// ✕ 닫기 — 창 숨김(핫키 재누름과 동일 효과). D5 갱신
+$('closeBtn').addEventListener('click', () => window.copyManager.hideWindow())
+// 📌 창 유지 토글(영속). keepOpen=true 면 blur 로 안 닫힘
+$('winPinBtn').addEventListener('click', () => void patchSettings({ keepOpen: !curKeepOpen }))
+$<HTMLInputElement>('keepOpen').addEventListener('change', (e) =>
+  void patchSettings({ keepOpen: (e.target as HTMLInputElement).checked })
+)
 
 // 다른 경로로 설정 변경 시 동기화
 window.copyManager.onSettingsChanged((s) => applySettings(s))

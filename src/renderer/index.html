@@ -641,9 +641,10 @@
       <span class="title">클립보드</span>
       <span class="state" id="state"></span>
       <span class="hbtns">
-        <span class="hbtn" id="winPinBtn" title="창 고정(자동숨김 끄기)">📌</span>
+        <span class="hbtn" id="winPinBtn" title="창 유지 토글">📌</span>
         <span class="hbtn" id="clearBtn" title="모두 지우기(핀 제외)">🧹</span>
         <span class="hbtn" id="setBtn" title="설정">⚙</span>
+        <span class="hbtn" id="closeBtn" title="닫기 (Ctrl+Alt+V 다시 눌러도 닫힘)">✕</span>
       </span>
     </div>
     <div class="tabs" id="tabs">
@@ -708,8 +709,17 @@
             <div class="lbl">전역 단축키 (창 열기)</div>
             <input type="text" id="setHotkey" spellcheck="false" />
             <div class="note" style="margin-top: 6px">
-              Electron accelerator 형식. 예: <b>CommandOrControl+Shift+V</b>. win+v는 OS
+              Electron accelerator 형식. 예: <b>CommandOrControl+Alt+V</b>. win+v는 OS
               예약이라 자체 핫키를 씁니다(충돌만 피하면 됨).
+            </div>
+          </div>
+          <div class="set-grp">
+            <label class="checkrow"
+              ><input type="checkbox" id="keepOpen" /> 창 유지 (포커스를 잃어도 닫지 않음)</label
+            >
+            <div class="note" style="margin-top: 8px">
+              체크 해제하면 다른 곳을 클릭할 때 자동으로 닫힙니다(자동숨김). 닫기는 핫키 다시
+              누르기 또는 헤더 ✕ 버튼.
             </div>
           </div>
           <div class="set-grp">

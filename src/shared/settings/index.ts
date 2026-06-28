@@ -22,6 +22,8 @@ export interface AppSettings {
   scrollSpeed: number
   /** 리모컨 활성화 방식 (D9) */
   remoteMode: RemoteMode
+  /** 창 유지: true 면 포커스를 잃어도 안 닫힘. false 면 blur→자동숨김 (D5 갱신) */
+  keepOpen: boolean
   /** 재부팅(앱 재시작) 시 설정을 기본값으로 리셋 (D17) */
   rebootReset: boolean
 }
@@ -34,6 +36,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   dwellMs: 700,
   scrollSpeed: 6,
   remoteMode: 'dwell',
+  keepOpen: true,
   rebootReset: false
 }
 

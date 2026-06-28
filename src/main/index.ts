@@ -7,7 +7,7 @@ import {
   type ClipItem
 } from '../shared/clipboard-store'
 import { SettingsStore, DEFAULT_SETTINGS, type AppSettings } from '../shared/settings'
-import { createWindow, getWindow, setPinned, restoreLastActiveWindow } from './window'
+import { createWindow, getWindow, setKeepOpen, hideWindow, restoreLastActiveWindow } from './window'
 import { registerHotkey, unregisterHotkey, reRegisterHotkey } from './hotkey'
 import { sendCtrlV } from './paste'
 
@@ -52,6 +52,9 @@ function applySettingsSideEffects(prev: AppSettings, next: AppSettings, s: Clipb
   if (next.keepCount !== prev.keepCount) {
     s.setMaxSize(next.keepCount)
   }
+  if (next.keepOpen !== prev.keepOpen) {
+    setKeepOpen(next.keepOpen)
+  }
 }
 
 function loadRenderer(win: BrowserWindow): void {
@@ -86,8 +89,9 @@ function registerIpc(s: ClipboardStore): void {
   // 최소 IPC 표면만 노출(보안).
   ipcMain.handle('history:get', (): readonly ClipItem[] => s.getAll())
 
-  ipcMain.on('pin:set', (_event, raw: unknown) => {
-    setPinned(raw === true)
+  // ✕ 버튼/명시적 닫기 — 창 숨김(D5 갱신: blur 자동숨김 대신 명시 닫기)
+  ipcMain.on('window:hide', () => {
+    hideWindow()
   })
 
   // 클릭=복사: 클립보드에 쓰기만(창 유지) — D12
@@ -110,7 +114,7 @@ function registerIpc(s: ClipboardStore): void {
     return true
   })
 
-  // S5: 항목 핀 토글(카드 📌 / 우클릭 / 상세) — D7/D13. (window pin 인 pin:set 과 별개)
+  // S5: 항목 핀 토글(카드 📌 / 우클릭 / 상세) — D7/D13. (창 유지 keepOpen 과는 별개)
   ipcMain.handle('item:pin', async (_event, raw: unknown): Promise<boolean> => {
     const { id, pinned } = (raw ?? {}) as { id?: unknown; pinned?: unknown }
     if (typeof id !== 'string' || typeof pinned !== 'boolean') return false
@@ -177,6 +181,7 @@ app.whenReady().then(async () => {
   }
   const cfg = settings.get()
   store.setMaxSize(cfg.keepCount) // 저장된 유지 개수 반영(필요 시 축출)
+  setKeepOpen(cfg.keepOpen) // D5 갱신: 저장된 창 유지 설정 반영
   await store.save()
 
   const win = createWindow()

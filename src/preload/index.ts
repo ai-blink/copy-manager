@@ -6,8 +6,8 @@ import type { AppSettings } from '../shared/settings'
 const api = {
   /** 클립보드 히스토리 조회 */
   getHistory: (): Promise<readonly ClipItem[]> => ipcRenderer.invoke('history:get'),
-  /** 창 핀(자동숨김 고정) 토글 — D5 */
-  setPinned: (pinned: boolean): void => ipcRenderer.send('pin:set', pinned),
+  /** ✕/명시적 닫기 — 창 숨김 (D5 갱신: 창 유지 동작) */
+  hideWindow: (): void => ipcRenderer.send('window:hide'),
   /** 클릭=복사: 항목을 OS 클립보드에 쓰기(창 유지) */
   copy: (id: string): Promise<boolean> => ipcRenderer.invoke('clip:copy', id),
   /** Enter/더블클릭=붙여넣기: 클립보드에 쓴 뒤 직전 앱에 Ctrl+V */

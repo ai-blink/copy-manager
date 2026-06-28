@@ -66,5 +66,6 @@ describe('SettingsStore (D17)', () => {
     expect(s.get().cols).toBe(2)
     expect(s.get().keepCount).toBe(DEFAULT_SETTINGS.keepCount) // 누락 → 기본값
     expect(s.get().hotkey).toBe(DEFAULT_SETTINGS.hotkey)
+    expect(s.get().keepOpen).toBe(true) // 신규 키 누락 → 기본값 true(창 유지)
   })
 })

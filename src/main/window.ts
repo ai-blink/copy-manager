@@ -2,12 +2,14 @@ import { BrowserWindow } from 'electron'
 import { join } from 'node:path'
 import { getActiveWindow } from '@nut-tree-fork/nut-js'
 
-// S1: frameless + alwaysOnTop + transparent 창, blur→hide(핀이면 유지, D5).
+// frameless + alwaysOnTop + transparent 창. D5(갱신): 기본 "창 유지"(blur 무시).
+// keepOpen=false 일 때만 blur→hide(자동숨김). 닫기=핫키 재누름 또는 ✕ 버튼.
 
 type NutWindow = Awaited<ReturnType<typeof getActiveWindow>>
 
 let win: BrowserWindow | null = null
-let pinned = false
+// 창 유지 여부(설정 keepOpen, 기본 true). 시작 시 settings 에서 주입.
+let keepOpen = true
 // S3e: 창을 열기 직전의 활성 윈도우(직전 앱) — 붙여넣기 시 포커스 복원 대상.
 let lastActiveWindow: NutWindow | null = null
 
@@ -30,9 +32,9 @@ export function createWindow(): BrowserWindow {
     }
   })
 
-  // D5: 자동숨김(blur→hide). 핀이면 유지.
+  // D5(갱신): keepOpen=false 일 때만 자동숨김(blur→hide). 기본(keepOpen=true)은 유지.
   win.on('blur', () => {
-    if (!pinned) win?.hide()
+    if (!keepOpen) win?.hide()
   })
 
   return win
@@ -65,12 +67,18 @@ export async function restoreLastActiveWindow(): Promise<boolean> {
   }
 }
 
-export function setPinned(value: boolean): void {
-  pinned = value
+/** 창 유지 여부 설정(설정 keepOpen). false 면 blur 시 자동숨김. */
+export function setKeepOpen(value: boolean): void {
+  keepOpen = value
 }
 
-export function isPinned(): boolean {
-  return pinned
+export function isKeepOpen(): boolean {
+  return keepOpen
+}
+
+/** ✕ 버튼/명시적 닫기 — 창 숨김. */
+export function hideWindow(): void {
+  win?.hide()
 }
 
 export function getWindow(): BrowserWindow | null {
