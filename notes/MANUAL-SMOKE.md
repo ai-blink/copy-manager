@@ -96,10 +96,23 @@ npm run dev      # electron-vite dev (HMR) — 또는 npm run build && npm start
 
 > 한계 명시: ① RDP·일부 가상화/원격 데스크톱 경로는 캡처 제외가 적용되지 않을 수 있음. ② OS·GPU 드라이버에 따라 폴백 동작(검은색)이 다를 수 있음. ③ 물리적 카메라 촬영은 방지 대상 아님(소프트웨어 캡처 한정).
 
+## 검증 항목 (보안 — 저장 암호화, D29)
+
+> `clip-history.json`을 Electron `safeStorage`(Windows DPAPI, 현재 사용자 계정에 묶임)로 암호화 → 파일이 유출돼도 타 계정/머신에서 복호화 불가.
+
+| # | 절차 | 기대 결과 | 결과 |
+|---|------|-----------|------|
+| M29 | 암호화 저장 확인 | 텍스트 몇 개 복사해 적재 → 앱 종료 → `%APPDATA%\copy-manager\clip-history.json`을 메모장으로 열기 → 내용이 `{"v":2,"alg":"safeStorage","data":"…(base64)"}` 형태이고 **복사한 평문이 안 보임** | ⬜ |
+| M30 | 복호화 재로딩 | 앱 재실행 → Ctrl+Alt+V → **이전 항목이 그대로 표시**(복호화 정상) | ⬜ |
+| M31 | 평문 마이그레이션 | (이번 업데이트 전 평문 기록이 있었다면) 업데이트 후 첫 복사/저장 시 파일이 위 암호화 포맷으로 **자동 전환**, 기존 항목 보존 | ⬜ |
+
+> 한계/주의: ① DPAPI 미가용 환경(드묾)은 평문 폴백 + 콘솔 경고(데이터 손실 방지). ② `settings.json`은 비민감(핫키·토글)이라 평문 유지. ③ 같은 사용자 계정에서 실행되는 멀웨어는 DPAPI 복호화가 가능 — at-rest 파일 유출·백업/동기화 노출 방어가 주목적.
+
 ## 기계 검증으로 커버되는 것 (수동 불필요)
 - ring buffer 50 / 핀 카운트 제외 / 핀 생존 / 타입 분류 매핑 / 저장-재로딩 라운드트립
   / 모두지우기(clearUnpinned) / 유지개수 변경(setMaxSize) 축출 / 항목 삭제(remove)
   / 설정 라운드트립·부분갱신·재부팅 리셋·누락키 보강
-  → `npm test` (vitest, 15종) 자동 검증. 테스트: `test/clipboard-store.test.ts`·`test/settings-store.test.ts`.
+  / **저장 암호화 cipher 포트 라운드트립·평문 마이그레이션(D29)**
+  → `npm test` (vitest, 17종) 자동 검증. 테스트: `test/clipboard-store.test.ts`·`test/settings-store.test.ts`.
 - tsconfig strict 타입 안정성 → `npm run typecheck` (`tsc --noEmit`).
 - main/preload/renderer 번들 빌드 → `npm run build`.

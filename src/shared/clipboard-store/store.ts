@@ -3,11 +3,30 @@ import { dirname } from 'node:path'
 import type { AddInput, ClipItem, PersistShape } from './types'
 import { classifyText } from './classify'
 
+/**
+ * 영속 데이터 암호화 포트 (느슨 결합 — electron 무관, D29).
+ * main 프로세스가 safeStorage(DPAPI) 기반 구현을 주입한다. 미주입 시 평문(IDENTITY_CIPHER).
+ * - encrypt: 평문 JSON 문자열 → 파일에 쓸 문자열(암호문 래퍼)
+ * - decrypt: 파일에서 읽은 문자열 → 평문 JSON 문자열. 구 평문 파일은 그대로 통과(마이그레이션)
+ */
+export interface Cipher {
+  encrypt(plain: string): string
+  decrypt(stored: string): string
+}
+
+/** 기본 cipher — 평문 그대로(현재 동작 보존, 테스트는 electron 없이 통과). */
+export const IDENTITY_CIPHER: Cipher = {
+  encrypt: (plain) => plain,
+  decrypt: (stored) => stored
+}
+
 export interface ClipboardStoreOptions {
   /** JSON 영속화 파일 경로 */
   filePath: string
   /** 비핀 항목 최대 보유 수 (기본 50, D7) */
   maxSize?: number
+  /** 영속 암호화 포트(D29). 미지정 시 평문(IDENTITY_CIPHER). */
+  cipher?: Cipher
 }
 
 const DEFAULT_MAX = 50
@@ -25,10 +44,12 @@ export class ClipboardStore {
   private seq = 0
   private maxSize: number
   private readonly filePath: string
+  private readonly cipher: Cipher
 
   constructor(opts: ClipboardStoreOptions) {
     this.filePath = opts.filePath
     this.maxSize = opts.maxSize ?? DEFAULT_MAX
+    this.cipher = opts.cipher ?? IDENTITY_CIPHER
   }
 
   /** 최신이 마지막인 불변 뷰. */
@@ -107,14 +128,15 @@ export class ClipboardStore {
     })
   }
 
-  /** 현재 상태를 JSON 파일로 저장(디렉토리 없으면 생성). */
+  /** 현재 상태를 JSON 파일로 저장(디렉토리 없으면 생성). 영속 전 cipher 로 암호화(D29). */
   async save(): Promise<void> {
     const payload: PersistShape = { version: 1, items: this.items }
+    const json = JSON.stringify(payload, null, 2)
     await fs.mkdir(dirname(this.filePath), { recursive: true })
-    await fs.writeFile(this.filePath, JSON.stringify(payload, null, 2), 'utf8')
+    await fs.writeFile(this.filePath, this.cipher.encrypt(json), 'utf8')
   }
 
-  /** JSON 파일에서 재로딩. 파일 없으면 빈 상태로 시작. */
+  /** JSON 파일에서 재로딩. 파일 없으면 빈 상태로 시작. cipher 로 복호화(평문 파일은 그대로, D29). */
   async load(): Promise<void> {
     let raw: string
     try {
@@ -126,7 +148,7 @@ export class ClipboardStore {
       }
       throw err
     }
-    const parsed = JSON.parse(raw) as PersistShape
+    const parsed = JSON.parse(this.cipher.decrypt(raw)) as PersistShape
     this.items = Array.isArray(parsed.items) ? parsed.items : []
     this.seq = this.items.length
   }

@@ -12,6 +12,7 @@
 - ✅ **S4 (스크롤 리모컨) 구현** — `src/renderer/src/scroll-remote.ts` (독립 컴포넌트: ▲▼⚙·드웰 게이지·클릭/홀드·드래그·투명도, clipboard 비의존 → 전역판 분리 용이). GUI는 `notes/MANUAL-SMOKE.md` M15~M17
 - ✅ **S5 (부가 UI/설정) 구현** — 카드 액션 📌⋯🗑️·우클릭 메뉴·상세/확인/설정 모달(`src/renderer/`) + 설정 영속(`src/shared/settings/`) + main IPC(item:pin·clip:delete/clear/reset·settings:get/set). 비가역 동작 확인 모달 경유(D15). 단위테스트 9종 추가(총 15종 통과). GUI는 M18~M24
 - ✅ **보안: 화면 캡처 방지(D28) 구현** (2026-06-29) — `window.ts` `setContentProtection`(기본 on, `BrowserWindow.setContentProtection`) + 설정 `contentProtection` 토글(모달 체크박스·preload 제네릭 통과·main 시작/`settings:set` 반영). typecheck·build·test(15종, 라운드트립·누락키 보강 보강) 그린. GUI는 `notes/MANUAL-SMOKE.md` M25~M28
+- ✅ **보안: 저장 암호화(D29) 구현** (2026-06-29) — `clip-history.json`을 safeStorage/DPAPI로 암호화. `clipboard-store`에 `Cipher` 포트 주입(electron 비의존 유지, 기본 IDENTITY=평문) + `src/main/cipher.ts`(`createSafeStorageCipher`) + main 주입. 구 평문 파일 자동 마이그레이션. typecheck·build·test(**17종**, cipher 라운드트립·마이그레이션 +2) 그린. GUI는 M29
 - ✅ 스택 확정: Electron 42 + electron-vite 5 + **vite 7**(peer 정렬) + vitest 4 + TypeScript 6(strict) + @nut-tree-fork/nut-js 4. 저장=로컬 JSON(히스토리 `clip-history.json` + 설정 `settings.json`)
 
 ## 실행 명령

@@ -3,7 +3,7 @@ import { promises as fs } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
-import { ClipboardStore, classifyText } from '../src/shared/clipboard-store'
+import { ClipboardStore, classifyText, type Cipher } from '../src/shared/clipboard-store'
 
 // 각 테스트가 독립 임시 파일을 쓰도록 추적 후 정리.
 const tmpFiles: string[] = []
@@ -171,5 +171,58 @@ describe('ClipboardStore S5 메서드 (삭제/모두지우기/유지개수)', ()
 
     expect(store.size).toBe(1)
     expect(store.getAll().some((i) => i.id === a.id)).toBe(false)
+  })
+})
+
+describe('저장 암호화 cipher 포트 (D29)', () => {
+  // safeStorage 대신 electron 없이 검증하는 테스트 cipher.
+  // 실제 DPAPI cipher 와 동일한 의미: base64 봉투로 감싸고, 봉투 없는 평문은 그대로 통과(마이그레이션).
+  const b64Cipher: Cipher = {
+    encrypt: (plain) => JSON.stringify({ enc: Buffer.from(plain, 'utf8').toString('base64') }),
+    decrypt: (stored) => {
+      try {
+        const o = JSON.parse(stored) as { enc?: unknown }
+        if (typeof o.enc === 'string') return Buffer.from(o.enc, 'base64').toString('utf8')
+      } catch {
+        /* 봉투 아님 → 평문 통과 */
+      }
+      return stored
+    }
+  }
+
+  it('(j) cipher 주입 시 파일은 평문이 아니고, 라운드트립으로 동일 상태를 복원한다', async () => {
+    const filePath = tmpFile()
+    const a = new ClipboardStore({ filePath, maxSize: 50, cipher: b64Cipher })
+    a.add({ content: 'secret-token-XYZ', type: 'text', createdAt: 10 })
+    a.add({ content: 'https://pinned.example', pinned: true, createdAt: 20 })
+    await a.save()
+
+    // 디스크 내용에 평문 민감값이 노출되지 않아야 함
+    const onDisk = await fs.readFile(filePath, 'utf8')
+    expect(onDisk).not.toContain('secret-token-XYZ')
+
+    // 같은 cipher 로 재로딩 시 원상 복원
+    const b = new ClipboardStore({ filePath, maxSize: 50, cipher: b64Cipher })
+    await b.load()
+    expect(b.getAll()).toEqual(a.getAll())
+    expect(b.getAll().some((i) => i.content === 'secret-token-XYZ')).toBe(true)
+  })
+
+  it('(k) 구 평문 파일을 cipher 로 로딩하면 통과되고(마이그레이션), 이후 save 는 암호화된다', async () => {
+    const filePath = tmpFile()
+    // 구버전: cipher 없이 평문 저장
+    const legacy = new ClipboardStore({ filePath, maxSize: 50 })
+    legacy.add({ content: 'legacy-secret', type: 'text', createdAt: 1 })
+    await legacy.save()
+    expect(await fs.readFile(filePath, 'utf8')).toContain('legacy-secret') // 평문 확인
+
+    // cipher 주입 store 가 평문 파일을 정상 로딩(마이그레이션 진입)
+    const migrated = new ClipboardStore({ filePath, maxSize: 50, cipher: b64Cipher })
+    await migrated.load()
+    expect(migrated.getAll().some((i) => i.content === 'legacy-secret')).toBe(true)
+
+    // 이후 save 는 암호화 → 디스크에 평문 미노출
+    await migrated.save()
+    expect(await fs.readFile(filePath, 'utf8')).not.toContain('legacy-secret')
   })
 })

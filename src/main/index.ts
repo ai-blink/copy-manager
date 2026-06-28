@@ -18,6 +18,7 @@ import {
 } from './window'
 import { registerHotkey, unregisterHotkey, reRegisterHotkey } from './hotkey'
 import { sendCtrlV } from './paste'
+import { createSafeStorageCipher } from './cipher'
 
 const POLL_INTERVAL_MS = 800
 const HISTORY_FILE = 'clip-history.json'
@@ -183,7 +184,10 @@ function registerIpc(s: ClipboardStore): void {
 
 app.whenReady().then(async () => {
   const userData = app.getPath('userData')
-  store = new ClipboardStore({ filePath: join(userData, HISTORY_FILE) })
+  // D29: 저장 암호화(safeStorage/DPAPI). app ready 이후 cipher 생성 → store 에 주입.
+  // 기존 평문 clip-history.json 은 load 시 그대로 읽히고, 다음 save 때 암호화로 마이그레이션.
+  const cipher = createSafeStorageCipher()
+  store = new ClipboardStore({ filePath: join(userData, HISTORY_FILE), cipher })
   await store.load() // S2: 시작 시 재로딩
 
   // S5: 설정 로드. D17 "재부팅 시 기본값 리셋" 켜져 있으면 시작 시 초기화.
