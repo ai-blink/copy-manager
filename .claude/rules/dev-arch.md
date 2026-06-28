@@ -1,6 +1,6 @@
-# dev-arch — copy-manager (의도 아키텍처 · 코드 착수 전)
+# dev-arch — copy-manager (아키텍처 · 파일 맵)
 
-> 아직 코드 없음. 아래는 구현 시 목표 구조. 실제 파일 생기면 갱신.
+> S1~S5 구현 완료(2026-06-28). 아래 구조는 실제 코드와 일치. 변경 시 갱신.
 
 ## 프로세스 구성 (Electron)
 ```
@@ -18,11 +18,19 @@ main (Node)                      renderer (창 UI)
         └──────────────┘
 ```
 
-## 모듈 경계 (예정)
-- `clipboard-store` — 캡처·ring buffer·핀·영속화·타입 분류
-- `scroll-remote` — **독립 컴포넌트**(전역판 분리 대비 느슨 결합): 입력=스크롤 대상 ref, 출력=scroll 명령
-- `settings` — 영속 + "재부팅 시 기본값 리셋" 분기
-- `paste` — 직전 포커스 앱 Ctrl+V 합성 (검증 대상)
+## 모듈 경계 (구현 — 실제 경로)
+- `src/shared/clipboard-store/` — 캡처(`capture.ts`)·ring buffer/핀/영속(`store.ts`)·타입 분류(`classify.ts`). electron 비의존(테스트 가능)
+- `src/shared/settings/` — `SettingsStore`(JSON 영속·누락키 보강·재부팅 리셋). electron 비의존
+- `src/renderer/src/scroll-remote.ts` — **독립 컴포넌트** `mountScrollRemote({target,container})→handle`. clipboard 비의존(입력=스크롤 대상/경계, 출력=`scrollTop`), 전역판 분리 대비 느슨 결합(D18/D25)
+- `src/renderer/src/main.ts` — 그리드·타입탭·검색·키보드 탐색·카드 액션·우클릭 메뉴·상세/확인/설정 모달·설정 적용
+- `src/main/` — `window.ts`(창·blur→hide·직전창 focus 복원)·`hotkey.ts`(전역 핫키·재등록)·`paste.ts`(Ctrl+V 합성)·`index.ts`(캡처 폴링·IPC·설정 적용)
+- `src/preload/index.ts` — contextBridge `copyManager` API(history/copy/paste/pinItem/delete/clear/reset/settings)
+
+## IPC 표면 (preload, contextIsolation)
+- 조회: `history:get` · `settings:get`
+- 동작: `clip:copy` · `clip:paste` · `item:pin` · `clip:delete` · `clip:clear` · `clip:reset` · `pin:set`(창 핀) · `settings:set`
+- 알림(main→renderer): `history:changed` · `settings:changed`
 
 ## 보안/Electron 기본
-- contextIsolation on, nodeIntegration off, preload로 최소 IPC 노출
+- contextIsolation on, nodeIntegration off, sandbox on, preload(CJS)로 최소 IPC 노출
+- 렌더러는 shared 모듈에서 `import type`만 사용 → node:fs 비번들(XSS는 textContent로 차단)
