@@ -14,8 +14,12 @@
 ## 현재 상태 (2026-06-29)
 - **S1~S5 전 슬라이스 코드 구현·실사용 검증·커밋 완료** (커밋 `21cabee` S4~S5, `456b15f` S1~S3).
 - **보안: 화면 캡처 방지(D28) 구현·커밋 완료** (2026-06-29, 커밋 `578cda2`) — `setContentProtection` 기본 on + 설정 토글.
-- **보안: 저장 암호화(D29) 구현 완료** (2026-06-29) — `clip-history.json` safeStorage/DPAPI 암호화, `Cipher` 포트 주입(`src/main/cipher.ts`), 평문 자동 마이그레이션. typecheck·build·test(17종) 그린. 커밋 미반영(작업 트리 변경분 있음).
-- 남은 것: GUI 수동 검증 잔여(`notes/MANUAL-SMOKE.md` M4·M5·M7~M9 + M15~M24 + **M25~M28 캡처 방지 + M29 저장 암호화**) + **1주 실사용 평가**("win+v보다 안 답답한가").
+- **보안: 저장 암호화(D29) 구현·커밋 완료** (2026-06-29, 커밋 `f6e9913`) — `clip-history.json` safeStorage/DPAPI 암호화, `Cipher` 포트 주입(`src/main/cipher.ts`), 평문 자동 마이그레이션. test 17종 그린.
+- **버그픽스: 프레임리스 창 드래그 이동** (2026-06-29, 커밋 `2ad140b`) — `.head`에 `-webkit-app-region: drag`, `.hbtn`에 no-drag.
+- 남은 것:
+  - **보안 후속(미구현)**: 2순위 = 민감 항목 미저장(Windows 클립보드 제외 마커 `ExcludeClipboardContentFromMonitorProcessing`·`CanIncludeInClipboardHistory` 존중 + 카드/시크릿 패턴 감지), 3순위 = 렌더러 CSP + 외부 내비게이션/`window.open` 차단. (실현성·범위는 다음 세션 시작 시 확인)
+  - GUI 수동 검증 잔여(`notes/MANUAL-SMOKE.md` M4·M5·M7~M9 + M15~M24 + **M25~M28 캡처 방지 + M29~M31 저장 암호화**) + **1주 실사용 평가**("win+v보다 안 답답한가").
+- 무관 잔여(미커밋): `CLAUDE.md` 거버넌스 추가분(Cross-Project Delivery Guard) — D28/D29와 무관해 제외해 둠.
 
 ## 핵심 파일
 - 설계 정본: `notes/brainstorm/2026-06-28_copy-manager_design.md` · mockup: `notes/brainstorm/04_mockup.html`
