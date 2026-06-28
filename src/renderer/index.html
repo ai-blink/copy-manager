@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:"
+    />
+    <title>copy-manager</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #1b1b1f;
+        --panel: #2a2a30;
+        --panel-2: #33333b;
+        --line: #3d3d46;
+        --text: #e8e8ec;
+        --muted: #9a9aa6;
+        --accent: #c07bf0;
+        --sel: #3a3550;
+        --ok: #5ad19a;
+        --cols: 3;
+        --rowh: 150px;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+      }
+      body {
+        font-family: 'Segoe UI', 'Malgun Gothic', system-ui, sans-serif;
+        color: var(--text);
+        background: rgba(28, 30, 38, 0.94);
+        border-radius: 14px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        -webkit-user-select: none;
+        user-select: none;
+      }
+      .head {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 14px 6px;
+      }
+      .head .title {
+        font-size: 17px;
+        font-weight: 700;
+      }
+      .head .state {
+        margin-left: auto;
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .tabs {
+        display: flex;
+        gap: 4px;
+        padding: 2px 14px 8px;
+        border-bottom: 1px solid var(--line);
+        flex-wrap: wrap;
+      }
+      .tab {
+        font-size: 12px;
+        padding: 6px 12px;
+        border-radius: 999px;
+        cursor: pointer;
+        color: var(--muted);
+        border: 1px solid transparent;
+      }
+      .tab:hover {
+        background: var(--panel-2);
+        color: var(--text);
+      }
+      .tab.on {
+        background: var(--accent);
+        color: #1a1020;
+        font-weight: 650;
+      }
+      .tab .cnt {
+        opacity: 0.7;
+        font-size: 10px;
+        margin-left: 3px;
+      }
+      .search {
+        margin: 10px 14px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: var(--panel-2);
+        border: 1px solid var(--accent);
+        border-radius: 12px;
+        padding: 10px 12px;
+      }
+      .search input {
+        flex: 1;
+        background: transparent;
+        border: 0;
+        color: var(--text);
+        font: inherit;
+        font-size: 14px;
+        outline: none;
+      }
+      .search .hint {
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .body {
+        flex: 1;
+        position: relative;
+        min-height: 0;
+      }
+      .list {
+        position: absolute;
+        inset: 0;
+        overflow-y: auto;
+        padding: 4px 8px 12px;
+        display: grid;
+        grid-template-columns: repeat(var(--cols), 1fr);
+        gap: 10px;
+        grid-auto-rows: var(--rowh);
+        align-content: start;
+      }
+      .list::-webkit-scrollbar {
+        width: 14px;
+      }
+      .list::-webkit-scrollbar-thumb {
+        background: #55556a;
+        border-radius: 8px;
+        border: 3px solid var(--panel);
+      }
+      .card {
+        position: relative;
+        height: 100%;
+        border: 1px solid var(--line);
+        background: var(--panel-2);
+        border-radius: 12px;
+        padding: 9px 10px;
+        cursor: pointer;
+        transition:
+          border-color 0.12s,
+          background 0.12s,
+          transform 0.1s;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      .card:hover {
+        border-color: #56566a;
+      }
+      .card.sel {
+        border-color: var(--accent);
+        background: var(--sel);
+        box-shadow: 0 0 0 1px var(--accent) inset;
+      }
+      .card.flash {
+        transform: scale(0.97);
+      }
+      .card .meta {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 10px;
+        color: var(--muted);
+        margin-bottom: 6px;
+        flex: 0 0 auto;
+      }
+      .card .meta .type {
+        padding: 1px 6px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+      }
+      .card .content {
+        flex: 1 1 auto;
+        min-height: 0;
+        font-size: 12px;
+        line-height: 1.4;
+        overflow: hidden;
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 5;
+        word-break: break-word;
+      }
+      .card.code .content {
+        font-family: Consolas, monospace;
+        font-size: 11px;
+        color: #cfe6ff;
+        white-space: pre-wrap;
+      }
+      .card .thumb {
+        flex: 1 1 auto;
+        min-height: 0;
+        border-radius: 8px;
+        margin-bottom: 6px;
+        background-size: cover;
+        background-position: center;
+        border: 1px solid var(--line);
+      }
+      .card .copied {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        background: rgba(90, 209, 154, 0.16);
+        color: var(--ok);
+        font-weight: 700;
+        font-size: 13px;
+        border-radius: 12px;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.12s;
+      }
+      .card.flash .copied {
+        opacity: 1;
+      }
+      .empty {
+        position: absolute;
+        inset: 0;
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        color: var(--muted);
+      }
+      .empty.show {
+        display: flex;
+      }
+      .empty .big {
+        font-size: 40px;
+      }
+      .foot {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 14px;
+        border-top: 1px solid var(--line);
+        font-size: 11px;
+        color: var(--muted);
+        flex-wrap: wrap;
+      }
+      .kbd {
+        border: 1px solid var(--line);
+        border-bottom-width: 2px;
+        border-radius: 6px;
+        padding: 1px 6px;
+        font-size: 11px;
+        color: var(--text);
+        background: var(--bg);
+      }
+      .toast {
+        position: absolute;
+        left: 50%;
+        bottom: 48px;
+        transform: translateX(-50%);
+        background: var(--ok);
+        color: #062018;
+        font-weight: 700;
+        font-size: 12px;
+        padding: 6px 14px;
+        border-radius: 999px;
+        opacity: 0;
+        transition: 0.2s;
+        pointer-events: none;
+        z-index: 50;
+      }
+      .toast.show {
+        opacity: 1;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="head">
+      <span class="title">클립보드</span>
+      <span class="state" id="state"></span>
+    </div>
+    <div class="tabs" id="tabs">
+      <span class="tab on" data-tab="전체">전체<span class="cnt"></span></span>
+      <span class="tab" data-tab="텍스트">텍스트<span class="cnt"></span></span>
+      <span class="tab" data-tab="이미지">이미지<span class="cnt"></span></span>
+      <span class="tab" data-tab="링크">링크<span class="cnt"></span></span>
+      <span class="tab" data-tab="코드">코드<span class="cnt"></span></span>
+    </div>
+    <div class="search">
+      <span>🔍</span>
+      <input id="search" placeholder="검색하거나 입력해서 필터…" />
+      <span class="hint" id="countHint"></span>
+    </div>
+    <div class="body">
+      <div class="list" id="list"></div>
+      <div class="empty" id="empty">
+        <div class="big">📋</div>
+        <div id="emptyMsg">클립보드가 비어 있어요</div>
+      </div>
+      <div class="toast" id="toast"></div>
+    </div>
+    <div class="foot">
+      <span><span class="kbd">←→↑↓</span> 탐색</span>
+      <span><span class="kbd">클릭</span> 복사</span>
+      <span><span class="kbd">Enter</span> 붙여넣기</span>
+    </div>
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>

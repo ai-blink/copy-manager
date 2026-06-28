@@ -1,0 +1,3 @@
+dev-docs init 완료 — 2026-06-28
+세트: CLAUDE.md + .claude/rules/dev-{brief,arch,progress,decisions,decisions-inbox,context,roadmap}.md + doc/INTENT.md
+상태: 설계 확정 / 코드 미착수. 다음 = roadmap S1.

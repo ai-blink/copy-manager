@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>copy-manager · mockup v3 (균일 카드 + 타입탭 + 창내부 리모컨)</title>
+<style>
+  :root{
+    --bg:#1b1b1f;--panel:#2a2a30;--panel-2:#33333b;--line:#3d3d46;
+    --text:#e8e8ec;--muted:#9a9aa6;--accent:#c07bf0;--accent-2:#7b6bf0;
+    --sel:#3a3550;--ok:#5ad19a;--cols:3;--rowh:150px;--remote-op:.65;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Segoe UI","Malgun Gothic",system-ui,sans-serif;color:var(--text);
+    background:radial-gradient(1200px 600px at 70% -10%,#2b2540 0,transparent 60%),
+      radial-gradient(900px 500px at 10% 110%,#20303a 0,transparent 55%),#121216;min-height:100vh}
+  header.top{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:12px 18px;
+    border-bottom:1px solid var(--line);background:rgba(20,20,24,.7);backdrop-filter:blur(8px);
+    position:sticky;top:0;z-index:50}
+  header.top h1{font-size:15px;margin:0;font-weight:650}
+  .tag{font-size:11px;color:var(--muted);border:1px solid var(--line);padding:2px 8px;border-radius:999px}
+  .spacer{flex:1}
+
+  .layout{display:grid;grid-template-columns:1fr 340px;min-height:calc(100vh - 56px)}
+  .stage{position:relative;overflow:hidden;background:linear-gradient(135deg,#243b4a,#2e2546)}
+  .stage::after{content:"바탕화면";position:absolute;left:16px;bottom:12px;color:rgba(255,255,255,.22);font-size:12px}
+
+  /* 클립보드 창 */
+  .cb{position:absolute;top:44px;left:50%;transform:translateX(-50%);width:580px;height:640px;
+    background:var(--panel);border:1px solid var(--line);border-radius:16px;
+    box-shadow:0 24px 60px rgba(0,0,0,.5);display:flex;flex-direction:column;
+    transition:width .2s,height .2s,opacity .2s;overflow:hidden}
+  .cb.size-compact{width:480px;height:520px}
+  .cb.size-large{width:700px;height:760px}
+  .cb.unpinned.dim{opacity:.25}
+  .cb-head{display:flex;align-items:center;gap:8px;padding:12px 14px 6px}
+  .cb-head .title{font-size:17px;font-weight:700}
+  .cb-head .icons{margin-left:auto;display:flex;gap:6px;align-items:center}
+  .ico-btn{width:30px;height:30px;display:grid;place-items:center;border-radius:8px;cursor:pointer;
+    color:var(--muted);border:1px solid transparent;user-select:none}
+  .ico-btn:hover{background:var(--panel-2);color:var(--text)}
+  .ico-btn.active{color:var(--accent);border-color:var(--accent);background:rgba(192,123,240,.12)}
+
+  /* 타입 탭 */
+  .cb-tabs{display:flex;gap:4px;padding:2px 14px 8px;border-bottom:1px solid var(--line)}
+  .tab{font-size:12px;padding:6px 12px;border-radius:999px;cursor:pointer;color:var(--muted);border:1px solid transparent}
+  .tab:hover{background:var(--panel-2);color:var(--text)}
+  .tab.on{background:var(--accent);color:#1a1020;font-weight:650}
+  .tab .cnt{opacity:.7;font-size:10px;margin-left:3px}
+
+  /* 검색우선 */
+  .cb-search{margin:10px 14px;display:flex;align-items:center;gap:10px;background:var(--panel-2);
+    border:1px solid var(--accent);border-radius:12px;padding:10px 12px}
+  .cb-search input{flex:1;background:transparent;border:0;color:var(--text);font:inherit;font-size:14px;outline:none}
+  .cb-search .hint{color:var(--muted);font-size:11px}
+
+  .cb-body{flex:1;position:relative;min-height:0}
+  .cb-list{position:absolute;inset:0;overflow-y:auto;padding:4px 8px 12px;display:grid;
+    grid-template-columns:repeat(var(--cols),1fr);gap:10px;grid-auto-rows:var(--rowh);align-content:start;scroll-behavior:smooth}
+  .cb-list::-webkit-scrollbar{width:14px}
+  .cb-list::-webkit-scrollbar-thumb{background:#55556a;border-radius:8px;border:3px solid var(--panel)}
+  .cb-list::-webkit-scrollbar-thumb:hover{background:#6b6b86}
+
+  /* 균일 카드 (행 높이 고정 → 안 겹침) */
+  .card{position:relative;height:100%;border:1px solid var(--line);background:var(--panel-2);
+    border-radius:12px;padding:9px 10px;cursor:pointer;transition:border-color .12s,background .12s;
+    display:flex;flex-direction:column;overflow:hidden}
+  .card:hover{border-color:#56566a}
+  .card.sel{border-color:var(--accent);background:var(--sel);box-shadow:0 0 0 1px var(--accent) inset}
+  .card .meta{display:flex;align-items:center;gap:6px;font-size:10px;color:var(--muted);margin-bottom:6px;flex:0 0 auto}
+  .card .meta .type{padding:1px 6px;border:1px solid var(--line);border-radius:999px}
+  .card .content{flex:1 1 auto;min-height:0;font-size:12px;line-height:1.4;overflow:hidden;
+    display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:5}
+  .card.code .content{font-family:Consolas,monospace;font-size:11px;color:#cfe6ff}
+  .card .pin{position:absolute;right:8px;bottom:8px;opacity:0;color:var(--muted);font-size:13px}
+  .card:hover .pin,.card.sel .pin{opacity:1}
+  .card.pinned .pin{opacity:1;color:var(--accent)}
+  /* 이미지 카드 */
+  .card.img .thumb{flex:1 1 auto;min-height:0;border-radius:8px;margin-bottom:6px;
+    background-size:cover;background-position:center;border:1px solid var(--line)}
+  .card.img .fname{flex:0 0 auto;font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .thumbA{background:linear-gradient(135deg,#5a3a9a,#c07bf0)}
+  .thumbB{background:linear-gradient(135deg,#1f6f6f,#5ad19a)}
+  .thumbC{background:linear-gradient(135deg,#9a5a3a,#f0b07b)}
+
+  /* 빈 상태 */
+  .empty{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--muted);text-align:center;padding:20px}
+  .empty.show{display:flex}
+  .empty .big{font-size:40px}
+  .empty .btn{margin-top:6px;font-size:12px;padding:8px 14px;border-radius:8px;border:1px solid var(--accent);color:var(--accent);background:rgba(192,123,240,.1);cursor:pointer}
+
+  /* 우클릭 메뉴 */
+  .ctxmenu{position:fixed;z-index:200;min-width:170px;background:var(--panel);border:1px solid var(--line);
+    border-radius:10px;box-shadow:0 14px 40px rgba(0,0,0,.5);padding:5px;display:none}
+  .ctxmenu.show{display:block}
+  .ctxmenu .mi{display:flex;align-items:center;gap:10px;font-size:13px;padding:8px 10px;border-radius:7px;cursor:pointer;color:var(--text)}
+  .ctxmenu .mi:hover{background:var(--panel-2)}
+  .ctxmenu .mi.danger:hover{background:rgba(240,90,90,.15);color:#ff9b9b}
+  .ctxmenu .sep{height:1px;background:var(--line);margin:4px 6px}
+
+  .cb-foot{display:flex;align-items:center;gap:10px;padding:8px 14px;border-top:1px solid var(--line);
+    font-size:11px;color:var(--muted);flex-wrap:wrap}
+  .kbd{border:1px solid var(--line);border-bottom-width:2px;border-radius:6px;padding:1px 6px;font-size:11px;color:var(--text);background:var(--bg)}
+  .toast{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);background:var(--ok);color:#062018;
+    font-weight:700;font-size:12px;padding:6px 14px;border-radius:999px;opacity:0;transition:.2s;pointer-events:none;z-index:120}
+  .toast.show{opacity:1}
+
+  /* 스크롤 리모컨 — 창 내부 플로팅 */
+  .remote{position:absolute;width:50px;background:rgba(30,30,38,.96);border:1px solid var(--line);
+    border-radius:14px;box-shadow:0 10px 28px rgba(0,0,0,.5);padding:5px;display:flex;flex-direction:column;gap:6px;
+    user-select:none;z-index:100;opacity:var(--remote-op);transition:opacity .15s}
+  .remote:hover{opacity:1}
+  .remote.dragging{opacity:1}
+  .remote .grip{height:12px;display:grid;place-items:center;color:var(--muted);cursor:grab;font-size:11px;letter-spacing:2px}
+  .remote.dragging .grip{cursor:grabbing}
+  .r-btn{position:relative;height:46px;border-radius:10px;border:1px solid var(--line);background:var(--panel);
+    display:grid;place-items:center;font-size:18px;cursor:pointer;overflow:hidden;color:var(--text)}
+  .r-btn:hover{border-color:var(--accent)}
+  .r-btn .glyph{position:relative;z-index:2}
+  .r-btn .gauge{position:absolute;left:0;right:0;bottom:0;height:0;background:linear-gradient(0deg,var(--accent),var(--accent-2));z-index:1}
+  .r-btn.active{box-shadow:0 0 0 2px var(--accent) inset}
+  .r-set{height:34px;border-radius:10px;border:1px solid var(--line);background:var(--panel);display:grid;place-items:center;font-size:14px;cursor:pointer;color:var(--muted)}
+  .r-set:hover{color:var(--text);border-color:var(--accent)}
+  .r-mode{text-align:center;font-size:8px;color:var(--muted)}
+
+  /* 패널 */
+  .panel{background:var(--bg);border-left:1px solid var(--line);padding:16px;overflow-y:auto}
+  .panel h2{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:18px 0 8px}
+  .panel h2:first-child{margin-top:0}
+  .ctl{margin:10px 0}
+  .ctl label{display:block;font-size:12px;margin-bottom:6px}
+  .ctl .val{color:var(--accent);font-weight:650}
+  input[type=range]{width:100%;accent-color:var(--accent)}
+  .row{display:flex;gap:6px;flex-wrap:wrap}
+  .chip{font-size:12px;padding:6px 10px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--muted);cursor:pointer}
+  .chip.on{border-color:var(--accent);color:var(--accent);background:rgba(192,123,240,.1)}
+  .note{font-size:11px;color:var(--muted);line-height:1.5;margin-top:6px}
+  .note b{color:var(--accent)}
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>copy-manager</h1>
+  <span class="tag">mockup v3 · 균일 카드 + 타입탭 + 창내부 리모컨</span>
+  <div class="spacer"></div>
+  <span class="tag">←→↑↓ 탐색 · Enter 붙여넣기 · 우클릭=메뉴</span>
+</header>
+
+<div class="layout">
+  <div class="stage" id="stage">
+    <div class="cb approach-B size-comfortable unpinned" id="cb">
+      <div class="cb-head">
+        <span class="title">클립보드</span>
+        <div class="icons">
+          <div class="ico-btn" id="pinBtn" title="핀 (창 고정)">📌</div>
+          <div class="ico-btn" id="clearBtn" title="모두 지우기 (데모)">🗑️</div>
+          <div class="ico-btn" title="설정">⚙️</div>
+          <div class="ico-btn" title="닫기 (Esc)">✕</div>
+        </div>
+      </div>
+      <div class="cb-tabs" id="tabs">
+        <span class="tab on" data-tab="전체">전체<span class="cnt"></span></span>
+        <span class="tab" data-tab="텍스트">텍스트<span class="cnt"></span></span>
+        <span class="tab" data-tab="이미지">이미지<span class="cnt"></span></span>
+        <span class="tab" data-tab="링크">링크<span class="cnt"></span></span>
+        <span class="tab" data-tab="코드">코드<span class="cnt"></span></span>
+      </div>
+      <div class="cb-search">
+        <span>🔍</span>
+        <input id="search" placeholder="검색하거나 입력해서 필터…" />
+        <span class="hint" id="countHint"></span>
+      </div>
+      <div class="cb-body">
+        <div class="cb-list" id="list"></div>
+        <div class="empty" id="empty">
+          <div class="big">📋</div>
+          <div id="emptyMsg">클립보드가 비어 있어요</div>
+          <div class="btn" id="restoreBtn">샘플 다시 채우기</div>
+        </div>
+        <!-- 스크롤 리모컨 (창 내부) -->
+        <div class="remote" id="remote" style="right:14px;bottom:14px">
+          <div class="grip" id="grip" title="잡아서 창 안에서 이동">⋮⋮</div>
+          <div class="r-btn" data-dir="up"><span class="glyph">▲</span><span class="gauge"></span></div>
+          <div class="r-btn" data-dir="down"><span class="glyph">▼</span><span class="gauge"></span></div>
+          <div class="r-set" id="remoteSet" title="리모컨 설정">⚙</div>
+          <div class="r-mode" id="rModeLabel">드웰</div>
+        </div>
+      </div>
+      <div class="cb-foot">
+        <span><span class="kbd">←</span><span class="kbd">→</span><span class="kbd">↑</span><span class="kbd">↓</span> 탐색</span>
+        <span><span class="kbd">Enter</span> 붙여넣기</span>
+        <span><span class="kbd">Esc</span> 닫기</span>
+        <span id="pinState" style="margin-left:auto">상태: 자동숨김</span>
+      </div>
+      <div class="toast" id="toast">붙여넣었어요</div>
+    </div>
+  </div>
+
+  <aside class="panel">
+    <h2>그리드</h2>
+    <div class="ctl">
+      <label>한 줄 카드 수 <span class="val" id="colsVal">3</span> <span style="color:var(--muted)">(기본 3)</span></label>
+      <div class="row" id="colsRow">
+        <span class="chip" data-cols="2">2</span><span class="chip on" data-cols="3">3</span>
+        <span class="chip" data-cols="4">4</span><span class="chip" data-cols="5">5</span>
+      </div>
+      <div class="note">카드 비율 <b>4:3 균일</b>(행 높이 고정 → 안 겹침). 내용 길면 …처리.</div>
+    </div>
+    <div class="ctl">
+      <label>히스토리 유지 개수 <span class="val" id="keepVal">50</span> <span style="color:var(--muted)">(기본 50)</span></label>
+      <input type="range" id="keep" min="10" max="300" step="10" value="50" />
+      <div class="note">초과분은 오래된 것부터 삭제. <b>핀 항목은 카운트 제외</b>(영구 보존).</div>
+    </div>
+    <div class="ctl">
+      <label>창 크기</label>
+      <div class="row" id="sizeRow">
+        <span class="chip" data-size="compact">작게</span><span class="chip on" data-size="comfortable">보통</span><span class="chip" data-size="large">크게</span>
+      </div>
+    </div>
+    <div class="ctl">
+      <label>핀 (창 고정)</label>
+      <div class="row"><span class="chip on" id="pinChip">자동숨김 (기본)</span></div>
+    </div>
+
+    <h2>스크롤 리모컨 (창 내부 플로팅)</h2>
+    <div class="note" style="margin-top:0">손잡이 <b>⋮⋮</b>를 드래그하면 <b>창 안에서만</b> 자유 이동. (4모서리·도킹 폐기)</div>
+    <div class="ctl">
+      <label>평소 투명도 <span class="val" id="opVal">65%</span> <span style="color:var(--muted)">(호버 시 100%)</span></label>
+      <input type="range" id="op" min="20" max="100" step="5" value="65" />
+    </div>
+    <div class="ctl">
+      <label>활성화 방식</label>
+      <div class="row" id="modeRow">
+        <span class="chip on" data-mode="dwell">드웰 (호버 유지)</span><span class="chip" data-mode="click">클릭/홀드</span>
+      </div>
+    </div>
+    <div class="ctl">
+      <label>드웰 임계 시간 <span class="val" id="dwellVal">700ms</span></label>
+      <input type="range" id="dwell" min="200" max="2000" step="100" value="700" />
+    </div>
+    <div class="ctl">
+      <label>스크롤 속도 <span class="val" id="speedVal">6</span></label>
+      <input type="range" id="speed" min="1" max="20" step="1" value="6" />
+    </div>
+  </aside>
+</div>
+
+<!-- 우클릭 메뉴 -->
+<div class="ctxmenu" id="ctx">
+  <div class="mi" data-act="pin">📌 <span id="ctxPin">핀 고정</span></div>
+  <div class="mi" data-act="paste">📋 평문으로 붙여넣기</div>
+  <div class="mi" data-act="copy">⧉ 다시 복사</div>
+  <div class="sep"></div>
+  <div class="mi danger" data-act="del">🗑️ 삭제</div>
+</div>
+
+<script>
+  const RAW=[
+    {type:'텍스트',c:'copy-manager'},
+    {type:'메모',c:'● homepage-glm-sandbox → homepage-agent 이름 변경 완료.'},
+    {type:'링크',c:'https://github.com/multica-ai/andrej-karpathy-skills/blob/main/skills/karpathy-guidelines/SKILL.md'},
+    {type:'명령',c:'npm install && npm run dev'},
+    {type:'코드',c:'const win = new BrowserWindow({\n  frame:false, alwaysOnTop:true, transparent:true\n});'},
+    {type:'이미지',img:'A',c:'screenshot_2026-06-28.png'},
+    {type:'주소',c:'서울특별시 강남구 테헤란로 123, 4층'},
+    {type:'이미지',img:'B',c:'architecture-diagram.png'},
+    {type:'링크',c:'https://www.electronjs.org/docs/latest/api/global-shortcut'},
+    {type:'메모',c:'드웰 게이지 700ms 튜닝, 스크롤 속도 곡선 적용 검토'},
+    {type:'이메일',c:'opuntia87@gmail.com'},
+    {type:'코드',c:'.card{ aspect-ratio:4/3; height:100%; }'},
+    {type:'이미지',img:'C',c:'app-logo-1024.png'},
+    {type:'문구',c:'클립보드 히스토리가 한 화면에 더 많이 보이면 좋겠다.'},
+    {type:'전화',c:'010-1234-5678'},
+  ];
+  let SAMPLE=[];
+  function fill(){ SAMPLE=[]; for(let k=0;k<2;k++) RAW.forEach((b,i)=>SAMPLE.push({...b,pinned:false,_id:k*100+i})); }
+  fill();
+
+  // 탭 카테고리
+  function cat(it){
+    if(it.type==='이미지') return '이미지';
+    if(it.type==='링크') return '링크';
+    if(it.type==='코드'||it.type==='명령') return '코드';
+    return '텍스트';
+  }
+  let tab='전체', filter='', sel=0;
+  function visible(){
+    return SAMPLE.filter(it=>(tab==='전체'||cat(it)===tab) && it.c.toLowerCase().includes(filter));
+  }
+
+  const list=document.getElementById('list'), empty=document.getElementById('empty'),
+        emptyMsg=document.getElementById('emptyMsg'), countHint=document.getElementById('countHint');
+
+  function render(){
+    const vis=visible();
+    if(sel>=vis.length) sel=Math.max(0,vis.length-1);
+    list.innerHTML='';
+    vis.forEach((it,i)=>{
+      const el=document.createElement('div');
+      const isImg=it.type==='이미지', isCode=cat(it)==='코드';
+      el.className='card'+(i===sel?' sel':'')+(it.pinned?' pinned':'')+(isImg?' img':'')+(isCode?' code':'');
+      if(isImg){
+        el.innerHTML=`<div class="meta"><span class="type">이미지</span><span>방금</span></div>
+          <div class="thumb thumb${it.img}"></div><div class="fname">🖼️ ${it.c}</div><span class="pin">📌</span>`;
+      }else{
+        el.innerHTML=`<div class="meta"><span class="type">${it.type}</span><span>방금</span></div>
+          <div class="content">${it.c.replace(/</g,'&lt;')}</div><span class="pin">📌</span>`;
+      }
+      el.onclick=()=>{sel=i;render();ensure();};
+      el.querySelector('.pin').onclick=(e)=>{e.stopPropagation();it.pinned=!it.pinned;render();};
+      el.oncontextmenu=(e)=>{e.preventDefault();sel=i;render();openCtx(e.clientX,e.clientY,it);};
+      list.appendChild(el);
+    });
+    // 빈 상태
+    if(vis.length===0){
+      empty.classList.add('show');
+      emptyMsg.textContent = (filter||tab!=='전체') ? '조건에 맞는 항목이 없어요' : '클립보드가 비어 있어요';
+      document.getElementById('restoreBtn').style.display = SAMPLE.length===0 ? '' : 'none';
+    }else empty.classList.remove('show');
+    countHint.textContent=`${vis.length}개`;
+    // 탭 카운트
+    document.querySelectorAll('#tabs .tab').forEach(t=>{
+      const tn=t.dataset.tab;
+      const n = tn==='전체'? SAMPLE.length : SAMPLE.filter(it=>cat(it)===tn).length;
+      t.querySelector('.cnt').textContent = n? n : '';
+    });
+    updateRowH();
+  }
+  function ensure(){const n=list.children[sel];if(n)n.scrollIntoView({block:'nearest'});}
+
+  // 행 높이 4:3 고정 (균일 카드 핵심)
+  let cols=3;
+  function updateRowH(){
+    const padX=16, gap=10;
+    const contentW=list.clientWidth - padX;
+    const cardW=(contentW - gap*(cols-1))/cols;
+    const rowH=Math.max(96, cardW*3/4);
+    document.documentElement.style.setProperty('--rowh', rowH+'px');
+  }
+  window.addEventListener('resize', updateRowH);
+
+  document.getElementById('search').oninput=e=>{filter=e.target.value.toLowerCase();sel=0;render();};
+  document.querySelectorAll('#tabs .tab').forEach(t=>t.onclick=()=>{
+    document.querySelectorAll('#tabs .tab').forEach(x=>x.classList.remove('on'));
+    t.classList.add('on');tab=t.dataset.tab;sel=0;render();
+  });
+  document.querySelectorAll('#colsRow .chip').forEach(c=>c.onclick=()=>{
+    document.querySelectorAll('#colsRow .chip').forEach(x=>x.classList.remove('on'));
+    c.classList.add('on');cols=+c.dataset.cols;
+    document.documentElement.style.setProperty('--cols',cols);
+    document.getElementById('colsVal').textContent=cols;updateRowH();
+  });
+  document.getElementById('keep').oninput=e=>document.getElementById('keepVal').textContent=e.target.value;
+
+  const cb=document.getElementById('cb');
+  document.querySelectorAll('#sizeRow .chip').forEach(c=>c.onclick=()=>{
+    document.querySelectorAll('#sizeRow .chip').forEach(x=>x.classList.remove('on'));
+    c.classList.add('on');cb.className=cb.className.replace(/size-\w+/,'size-'+c.dataset.size);
+    setTimeout(updateRowH,210);
+  });
+
+  // 핀
+  let pinned=false;
+  const pinBtn=document.getElementById('pinBtn'),pinChip=document.getElementById('pinChip'),pinState=document.getElementById('pinState');
+  function setPin(v){pinned=v;pinBtn.classList.toggle('active',pinned);
+    pinChip.textContent=pinned?'핀 고정됨':'자동숨김 (기본)';pinChip.classList.toggle('on',true);
+    pinState.textContent='상태: '+(pinned?'핀 고정 (안 닫힘)':'자동숨김');
+    cb.classList.toggle('unpinned',!pinned);if(pinned)cb.classList.remove('dim');}
+  pinBtn.onclick=()=>setPin(!pinned);pinChip.onclick=()=>setPin(!pinned);
+  document.getElementById('stage').onclick=e=>{if(e.target.id==='stage'&&!pinned)cb.classList.add('dim');};
+  cb.addEventListener('click',()=>cb.classList.remove('dim'));
+
+  // 모두 지우기 / 복원
+  document.getElementById('clearBtn').onclick=()=>{SAMPLE=SAMPLE.filter(it=>it.pinned);sel=0;render();};
+  document.getElementById('restoreBtn').onclick=()=>{fill();sel=0;render();};
+
+  // 우클릭 메뉴
+  const ctx=document.getElementById('ctx'); let ctxItem=null;
+  function openCtx(x,y,it){ctxItem=it;document.getElementById('ctxPin').textContent=it.pinned?'핀 해제':'핀 고정';
+    ctx.style.left=Math.min(x,innerWidth-180)+'px';ctx.style.top=Math.min(y,innerHeight-180)+'px';ctx.classList.add('show');}
+  document.addEventListener('click',()=>ctx.classList.remove('show'));
+  ctx.querySelectorAll('.mi').forEach(mi=>mi.onclick=()=>{
+    const a=mi.dataset.act;
+    if(a==='pin'&&ctxItem) ctxItem.pinned=!ctxItem.pinned;
+    if(a==='del'&&ctxItem) SAMPLE=SAMPLE.filter(x=>x!==ctxItem);
+    if(a==='paste'||a==='copy'){toast.classList.add('show');setTimeout(()=>toast.classList.remove('show'),900);}
+    render();
+  });
+
+  // 키보드 탐색
+  const toast=document.getElementById('toast');
+  document.addEventListener('keydown',e=>{
+    const onSearch=document.activeElement===document.getElementById('search');
+    if(onSearch&&!['ArrowDown','ArrowUp','Enter','Escape'].includes(e.key)) return;
+    const vis=visible();
+    if(['ArrowDown','ArrowUp','ArrowLeft','ArrowRight','Enter'].includes(e.key)) e.preventDefault();
+    if(e.key==='ArrowRight')sel=Math.min(sel+1,vis.length-1);
+    if(e.key==='ArrowLeft')sel=Math.max(sel-1,0);
+    if(e.key==='ArrowDown')sel=Math.min(sel+cols,vis.length-1);
+    if(e.key==='ArrowUp')sel=Math.max(sel-cols,0);
+    if(e.key==='Enter'){toast.classList.add('show');setTimeout(()=>toast.classList.remove('show'),900);}
+    if(e.key==='Escape'&&!pinned)cb.classList.add('dim');
+    if(['ArrowDown','ArrowUp','ArrowLeft','ArrowRight'].includes(e.key)){render();ensure();}
+  });
+
+  // 리모컨 모드/투명도/값
+  let mode='dwell',dwellMs=700,speed=6;
+  const rModeLabel=document.getElementById('rModeLabel');
+  document.querySelectorAll('#modeRow .chip').forEach(c=>c.onclick=()=>{
+    document.querySelectorAll('#modeRow .chip').forEach(x=>x.classList.remove('on'));
+    c.classList.add('on');mode=c.dataset.mode;rModeLabel.textContent=mode==='dwell'?'드웰':'클릭';});
+  document.getElementById('op').oninput=e=>{document.documentElement.style.setProperty('--remote-op',e.target.value/100);document.getElementById('opVal').textContent=e.target.value+'%';};
+  document.getElementById('dwell').oninput=e=>{dwellMs=+e.target.value;document.getElementById('dwellVal').textContent=dwellMs+'ms';};
+  document.getElementById('speed').oninput=e=>{speed=+e.target.value;document.getElementById('speedVal').textContent=speed;};
+
+  // 스크롤 + 드웰 게이지
+  document.querySelectorAll('.r-btn').forEach(btn=>{
+    const dir=btn.dataset.dir==='up'?-1:1,gauge=btn.querySelector('.gauge');
+    let raf=null,start=null,scrolling=null;
+    const begin=()=>{btn.classList.add('active');scrolling=setInterval(()=>list.scrollTop+=dir*speed,16);};
+    const stop=()=>{btn.classList.remove('active');gauge.style.height='0';if(raf)cancelAnimationFrame(raf);raf=null;start=null;if(scrolling){clearInterval(scrolling);scrolling=null;}};
+    const tick=ts=>{if(start===null)start=ts;const p=Math.min((ts-start)/dwellMs,1);gauge.style.height=(p*100)+'%';if(p>=1){begin();return;}raf=requestAnimationFrame(tick);};
+    btn.addEventListener('pointerenter',()=>{if(mode==='dwell')raf=requestAnimationFrame(tick);});
+    btn.addEventListener('pointerleave',stop);
+    btn.addEventListener('pointerdown',()=>{if(mode==='click')begin();});
+    btn.addEventListener('pointerup',()=>{if(mode==='click')stop();});
+  });
+
+  // 리모컨: 창 내부에서만 드래그
+  const remote=document.getElementById('remote'),grip=document.getElementById('grip'),body=document.querySelector('.cb-body');
+  let drag=null;
+  grip.addEventListener('pointerdown',e=>{
+    const r=remote.getBoundingClientRect(),s=body.getBoundingClientRect();
+    remote.style.right='auto';remote.style.bottom='auto';
+    remote.style.left=(r.left-s.left)+'px';remote.style.top=(r.top-s.top)+'px';
+    drag={dx:e.clientX-r.left,dy:e.clientY-r.top,s};remote.classList.add('dragging');grip.setPointerCapture(e.pointerId);
+  });
+  grip.addEventListener('pointermove',e=>{
+    if(!drag)return;
+    let x=e.clientX-drag.s.left-drag.dx,y=e.clientY-drag.s.top-drag.dy;
+    x=Math.max(0,Math.min(x,drag.s.width-remote.offsetWidth));
+    y=Math.max(0,Math.min(y,drag.s.height-remote.offsetHeight));
+    remote.style.left=x+'px';remote.style.top=y+'px';
+  });
+  grip.addEventListener('pointerup',()=>{drag=null;remote.classList.remove('dragging');});
+  document.getElementById('remoteSet').onclick=()=>alert('리모컨 설정: 투명도 · 드웰 임계 · 속도 · 모드 (오른쪽 패널에서 미리 조절)');
+
+  render();
+  window.addEventListener('load',updateRowH);
+</script>
+</body>
+</html>
