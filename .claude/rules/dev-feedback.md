@@ -25,3 +25,5 @@ updated: 2026-06-28
   ② `Electron failed to install correctly` → main 번들에 electron 인라인 → `externalizeDepsPlugin()` + `external:['electron']`(D19).
 - **렌더러 번들에 node:fs 누출 금지** — shared 모듈(`clipboard-store`·`settings`)은 렌더러에서 **`import type`만** 사용(런타임 import 0). 빌드 후 renderer 모듈 수로 확인.
 - **preload는 CJS(.cjs)** — Electron sandbox는 ESM preload 미지원(D19).
+- **프레임리스 창이 안 움직임** — `frame:false` 창은 OS 드래그 영역이 없으면 마우스로 이동 불가.
+  → 타이틀바(`.head`)에 `-webkit-app-region: drag`, 그 안의 버튼/입력(`.hbtn` 등)엔 `-webkit-app-region: no-drag`(클릭 유지). 더블클릭=최대화 부작용 가능.
