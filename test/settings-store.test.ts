@@ -34,7 +34,13 @@ describe('SettingsStore (D17)', () => {
   it('(c) 저장 → 재로딩 라운드트립이 동일 상태를 복원한다', async () => {
     const filePath = tmpFile()
     const a = new SettingsStore(filePath)
-    a.set({ cols: 4, remoteOpacity: 0.4, remoteMode: 'click', rebootReset: true })
+    a.set({
+      cols: 4,
+      remoteOpacity: 0.4,
+      remoteMode: 'click',
+      rebootReset: true,
+      contentProtection: false // 기본 true 와 다른 값으로 라운드트립 확인 (D28)
+    })
     await a.save()
 
     const b = new SettingsStore(filePath)
@@ -43,6 +49,7 @@ describe('SettingsStore (D17)', () => {
     expect(b.get().remoteOpacity).toBe(0.4)
     expect(b.get().remoteMode).toBe('click')
     expect(b.get().rebootReset).toBe(true)
+    expect(b.get().contentProtection).toBe(false)
   })
 
   it('(d) resetToDefaults 는 기본값으로 되돌리되 rebootReset 플래그는 유지한다', () => {
@@ -67,5 +74,6 @@ describe('SettingsStore (D17)', () => {
     expect(s.get().keepCount).toBe(DEFAULT_SETTINGS.keepCount) // 누락 → 기본값
     expect(s.get().hotkey).toBe(DEFAULT_SETTINGS.hotkey)
     expect(s.get().keepOpen).toBe(true) // 신규 키 누락 → 기본값 true(창 유지)
+    expect(s.get().contentProtection).toBe(true) // 신규 키 누락 → 기본값 true(보안 우선, D28)
   })
 })

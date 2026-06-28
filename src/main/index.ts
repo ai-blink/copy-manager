@@ -11,6 +11,7 @@ import {
   createWindow,
   getWindow,
   setKeepOpen,
+  setContentProtection,
   hideWindow,
   toggleAlwaysOnTop,
   restoreLastActiveWindow
@@ -61,6 +62,9 @@ function applySettingsSideEffects(prev: AppSettings, next: AppSettings, s: Clipb
   }
   if (next.keepOpen !== prev.keepOpen) {
     setKeepOpen(next.keepOpen)
+  }
+  if (next.contentProtection !== prev.contentProtection) {
+    setContentProtection(next.contentProtection) // D28: 캡처 방지 즉시 반영
   }
 }
 
@@ -192,6 +196,7 @@ app.whenReady().then(async () => {
   const cfg = settings.get()
   store.setMaxSize(cfg.keepCount) // 저장된 유지 개수 반영(필요 시 축출)
   setKeepOpen(cfg.keepOpen) // D5 갱신: 저장된 창 유지 설정 반영
+  setContentProtection(cfg.contentProtection) // D28: 창 생성 전 주입 → createWindow 에서 적용
   await store.save()
 
   const win = createWindow()

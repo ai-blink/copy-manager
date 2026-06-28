@@ -26,6 +26,8 @@ export interface AppSettings {
   keepOpen: boolean
   /** 재부팅(앱 재시작) 시 설정을 기본값으로 리셋 (D17) */
   rebootReset: boolean
+  /** 화면 캡처 방지: true 면 스크린샷/녹화/화면공유에서 창 제외 (보안, D28) */
+  contentProtection: boolean
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -37,7 +39,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
   scrollSpeed: 6,
   remoteMode: 'dwell',
   keepOpen: true,
-  rebootReset: false
+  rebootReset: false,
+  // 보안 우선 기본값(D28): 민감 클립보드 내용이 화면 공유/녹화에 새지 않도록 기본 활성.
+  contentProtection: true
 }
 
 interface SettingsPersist {

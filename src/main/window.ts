@@ -12,6 +12,10 @@ let win: BrowserWindow | null = null
 let keepOpen = true
 // 항상 위(alwaysOnTop) 토글 상태(세션, 기본 true). 헤더 📌 로 토글.
 let alwaysOnTop = true
+// 화면 캡처 방지(content protection, D28). 기본 true(보안 우선). 시작 시 settings 에서 주입.
+// Windows: SetWindowDisplayAffinity(WDA_EXCLUDEFROMCAPTURE, Win10 2004+) → 캡처에서 제외.
+// 구버전은 WDA_MONITOR(검은색) 폴백. RDP 등 일부 원격 경로는 효과가 다를 수 있음.
+let contentProtection = true
 // S3e: 창을 열기 직전의 활성 윈도우(직전 앱) — 붙여넣기 시 포커스 복원 대상.
 let lastActiveWindow: NutWindow | null = null
 
@@ -41,6 +45,9 @@ export function createWindow(): BrowserWindow {
   win.on('blur', () => {
     if (!keepOpen) win?.hide()
   })
+
+  // D28: 화면 캡처 방지 적용(스크린샷/녹화/화면공유에서 창 제외). 시작 시 주입된 값 반영.
+  win.setContentProtection(contentProtection)
 
   return win
 }
@@ -95,6 +102,17 @@ export function toggleAlwaysOnTop(): boolean {
 
 export function isAlwaysOnTop(): boolean {
   return alwaysOnTop
+}
+
+/** 화면 캡처 방지 토글(설정 contentProtection, D28). true 면 스크린샷/녹화/화면공유에서 창 제외.
+ * 시작 시(창 생성 전) 호출되면 값만 저장되고 createWindow 에서 실제 적용된다. */
+export function setContentProtection(value: boolean): void {
+  contentProtection = value
+  win?.setContentProtection(value)
+}
+
+export function isContentProtection(): boolean {
+  return contentProtection
 }
 
 export function getWindow(): BrowserWindow | null {

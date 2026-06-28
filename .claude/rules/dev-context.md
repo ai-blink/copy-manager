@@ -11,9 +11,10 @@
 - ⚠ dev 재시작 전 좀비 정리: `Get-Process electron | ? { $_.Path -like '*copy-manager*' } | Stop-Process -Force`
 - ⚠ 창은 `show:false`로 시작 → 기동 후 **Ctrl+Alt+V**로 띄움
 
-## 현재 상태 (2026-06-28)
-- **S1~S5 전 슬라이스 코드 구현·실사용 검증·커밋 완료** (커밋 `21cabee` S4~S5, `456b15f` S1~S3). 작업 트리 클린.
-- 남은 것: GUI 수동 검증 잔여(`notes/MANUAL-SMOKE.md` M4·M5·M7~M9 + M15~M24) + **1주 실사용 평가**("win+v보다 안 답답한가").
+## 현재 상태 (2026-06-29)
+- **S1~S5 전 슬라이스 코드 구현·실사용 검증·커밋 완료** (커밋 `21cabee` S4~S5, `456b15f` S1~S3).
+- **보안: 화면 캡처 방지(D28) 구현 완료** (2026-06-29) — `setContentProtection` 기본 on + 설정 토글. typecheck·build·test(15종) 그린. 커밋 미반영(작업 트리 변경분 있음).
+- 남은 것: GUI 수동 검증 잔여(`notes/MANUAL-SMOKE.md` M4·M5·M7~M9 + M15~M24 + **M25~M28 캡처 방지**) + **1주 실사용 평가**("win+v보다 안 답답한가").
 
 ## 핵심 파일
 - 설계 정본: `notes/brainstorm/2026-06-28_copy-manager_design.md` · mockup: `notes/brainstorm/04_mockup.html`

@@ -400,6 +400,7 @@ function syncSettingsControls(s: AppSettings): void {
     .forEach((c) => c.classList.toggle('on', c.dataset['mode'] === s.remoteMode))
   $<HTMLInputElement>('keepOpen').checked = s.keepOpen
   $<HTMLInputElement>('rebootReset').checked = s.rebootReset
+  $<HTMLInputElement>('contentProtection').checked = s.contentProtection
 }
 
 function applySettings(s: AppSettings): void {
@@ -507,6 +508,10 @@ winPinBtn.addEventListener('click', () => {
 // 창 유지(keepOpen)는 설정 "창 유지" 체크박스 전용
 $<HTMLInputElement>('keepOpen').addEventListener('change', (e) =>
   void patchSettings({ keepOpen: (e.target as HTMLInputElement).checked })
+)
+// 화면 캡처 방지(contentProtection) — 설정 "화면 캡처 방지" 체크박스 전용 (D28)
+$<HTMLInputElement>('contentProtection').addEventListener('change', (e) =>
+  void patchSettings({ contentProtection: (e.target as HTMLInputElement).checked })
 )
 
 // 다른 경로로 설정 변경 시 동기화
