@@ -123,3 +123,53 @@ describe('JSON 영속화 (S2)', () => {
     expect(store.size).toBe(0)
   })
 })
+
+describe('ClipboardStore S5 메서드 (삭제/모두지우기/유지개수)', () => {
+  it('(f) clearUnpinned 는 핀만 남기고 비핀을 모두 지운다 (D15)', () => {
+    const store = newStore()
+    store.add({ content: 'a', type: 'text', createdAt: 1 })
+    store.add({ content: 'KEEP', type: 'text', pinned: true, createdAt: 2 })
+    store.add({ content: 'b', type: 'text', createdAt: 3 })
+
+    store.clearUnpinned()
+
+    expect(store.size).toBe(1)
+    expect(store.getAll()[0]?.content).toBe('KEEP')
+    expect(store.unpinnedCount).toBe(0)
+  })
+
+  it('(g) clear 는 핀 포함 전체를 비운다 (메모리 리셋, D17)', () => {
+    const store = newStore()
+    store.add({ content: 'a', type: 'text', createdAt: 1 })
+    store.add({ content: 'PIN', type: 'text', pinned: true, createdAt: 2 })
+
+    store.clear()
+
+    expect(store.size).toBe(0)
+  })
+
+  it('(h) setMaxSize 축소 시 즉시 오래된 비핀부터 축출, 핀은 보존', () => {
+    const store = newStore()
+    store.add({ content: 'PIN', type: 'text', pinned: true, createdAt: 1 })
+    for (let i = 0; i < 5; i++) store.add({ content: `n-${i}`, type: 'text', createdAt: 10 + i })
+    expect(store.unpinnedCount).toBe(5)
+
+    store.setMaxSize(2) // 비핀 5 → 2 (n-0,n-1,n-2 축출)
+
+    expect(store.unpinnedCount).toBe(2)
+    expect(store.getAll().some((i) => i.content === 'PIN')).toBe(true) // 핀 생존
+    expect(store.getAll().some((i) => i.content === 'n-0')).toBe(false)
+    expect(store.getAll().some((i) => i.content === 'n-4')).toBe(true) // 최신 비핀 생존
+  })
+
+  it('(i) remove 는 지정 id 만 삭제한다', () => {
+    const store = newStore()
+    const a = store.add({ content: 'a', type: 'text', createdAt: 1 })
+    store.add({ content: 'b', type: 'text', createdAt: 2 })
+
+    store.remove(a.id)
+
+    expect(store.size).toBe(1)
+    expect(store.getAll().some((i) => i.id === a.id)).toBe(false)
+  })
+})

@@ -28,3 +28,6 @@
 | D22 | 전역 핫키 기본값 | **Ctrl+Shift+V**(`CommandOrControl+Shift+V`) (inbox 해소) |
 | D23 | 붙여넣기 합성 | **@nut-tree-fork/nut-js**(공식 @nut-tree/nut-js 비공개→공개 fork) · 직전 창 `getActiveWindow` 저장→`focus()` 복원→`Ctrl↓V↓V↑Ctrl↑`(autoDelayMs 40) 순차 합성 (inbox 해소) |
 | D24 | 렌더러 | **vanilla TS**(프레임워크 미도입) — S3 규모는 충분, 가상 스크롤 불필요 (inbox 해소) |
+| D25 | 스크롤 리모컨 구조 | **독립 컴포넌트** `scroll-remote.ts`(`mountScrollRemote({target,container,...})→handle`). clipboard 도메인 비의존(입력=스크롤 대상/경계, 출력=`target.scrollTop`). 드웰/스크롤은 rAF 기반. 기본값: 드웰 700ms·속도 6px/frame·투명도 0.65. 전역판 분리 시 이 파일만 떼어냄(D18) (S4) |
+| D26 | 설정 저장소 | **로컬 JSON** `settings.json`(`%APPDATA%/copy-manager/`) · `SettingsStore`(electron 무관, 누락 키 기본값 보강). 항목: hotkey·cols·keepCount·remoteOpacity·dwellMs·scrollSpeed·remoteMode·rebootReset. 설정 모달이 단일 소스, 변경 즉시 영속+적용 (S5) |
+| D27 | 재부팅 리셋 동작 | rebootReset=true면 **앱 시작 시 `resetToDefaults()`** 호출(나머지 기본값 복원, rebootReset 플래그 자체는 유지 → 켜둔 채 계속 리셋). 핫키/유지개수 변경은 main 부수효과(재등록·setMaxSize)로 적용 (S5) |

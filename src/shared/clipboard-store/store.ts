@@ -23,7 +23,7 @@ const DEFAULT_MAX = 50
 export class ClipboardStore {
   private items: ClipItem[] = []
   private seq = 0
-  private readonly maxSize: number
+  private maxSize: number
   private readonly filePath: string
 
   constructor(opts: ClipboardStoreOptions) {
@@ -81,6 +81,17 @@ export class ClipboardStore {
   /** 전체 비우기(핀 포함) — 메모리 리셋용(D17). */
   clear(): void {
     this.items = []
+  }
+
+  /** 핀을 제외한 모든 항목 삭제 — "모두 지우기"(D15). 핀은 보존. */
+  clearUnpinned(): void {
+    this.items = this.items.filter((i) => i.pinned)
+  }
+
+  /** 비핀 유지 개수(maxSize) 변경 — 설정 모달(D17). 즉시 ring buffer 규칙 재적용. */
+  setMaxSize(n: number): void {
+    this.maxSize = Math.max(1, Math.floor(n))
+    this.evict()
   }
 
   /** 비핀 항목이 maxSize 를 넘으면 가장 오래된 비핀부터 제거. 핀은 건너뜀. */

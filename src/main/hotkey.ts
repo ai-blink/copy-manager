@@ -15,3 +15,9 @@ export function registerHotkey(accelerator: string = DEFAULT_HOTKEY): boolean {
 export function unregisterHotkey(): void {
   globalShortcut.unregisterAll()
 }
+
+/** 핫키 재등록(설정 변경 시). 기존 등록 해제 후 새 accelerator 로 등록. */
+export function reRegisterHotkey(accelerator: string): boolean {
+  unregisterHotkey()
+  return registerHotkey(accelerator)
+}

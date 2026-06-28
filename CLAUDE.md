@@ -6,8 +6,10 @@ Windows 11 `win+v`(클립보드 기록 창)의 불편을 해소하는 **개인�
 - **Electron + TypeScript** (Windows 전용) · 렌더러 우선 vanilla TS(필요 시 경량 프레임워크) · 빌드 Vite · 저장 로컬(JSON/SQLite)
 
 ## 현재 상태
-- **S1(Electron 셸)·S2(클립보드 캡처/저장) 구현 완료** — `src/main/`, `src/shared/clipboard-store/`
-- 다음: S3(카드 그리드 UI) — `.claude/rules/dev-roadmap.md`
+- **S1~S5 전 슬라이스 코드 구현 완료** — S1 Electron 셸·S2 캡처/저장·S3 카드 그리드·S4 스크롤 리모컨·S5 부가 UI/설정.
+  - `src/main/`(창·핫키·캡처·붙여넣기·IPC), `src/shared/clipboard-store/`, `src/shared/settings/`, `src/renderer/`(그리드·리모컨·모달·설정)
+- 단위테스트 15종 통과(`test/clipboard-store.test.ts`·`test/settings-store.test.ts`). typecheck·build 그린.
+- 다음: GUI 수동 검증(`notes/MANUAL-SMOKE.md` M4·M5·M7~M9 잔여 + M15~M24) + 1주 실사용 평가 — `.claude/rules/dev-roadmap.md`
 - 설계 정본: `notes/brainstorm/2026-06-28_copy-manager_design.md`
 - 동작 mockup: `notes/brainstorm/04_mockup.html` (검토용, 최신)
 - GUI 수동 검증 절차: `notes/MANUAL-SMOKE.md`

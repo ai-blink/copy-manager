@@ -3,3 +3,6 @@ out/
 dist/
 *.log
 .DS_Store
+
+# hook이 생성하는 서브에이전트 기록(세션 산출물 — 프로젝트 소스 아님)
+notes/subagents/
