@@ -5,7 +5,7 @@
 - ✅ UX 설계서 확정: `notes/brainstorm/2026-06-28_copy-manager_design.md`
 - ✅ 동작 mockup v1~v4 (v4 최신, 모든 결정 반영)
 - ✅ dev-docs 스캐폴딩 (이 문서들)
-- ✅ **S1 (Electron 셸) 구현** — `src/main/` (frameless/alwaysOnTop/transparent 창·전역 핫키 Ctrl+Shift+V 토글·blur→hide 핀 override). GUI 동작 검증은 `notes/MANUAL-SMOKE.md` 위임
+- ✅ **S1 (Electron 셸) 구현** — `src/main/` (frameless/alwaysOnTop/transparent 창·전역 핫키 Ctrl+Alt+V 토글·blur→hide 핀 override). GUI 동작 검증은 `notes/MANUAL-SMOKE.md` 위임
 - ✅ **S2 (클립보드 캡처/저장) 구현** — `src/shared/clipboard-store/` (캡처·ring buffer 50·핀 카운트 제외·핀 영구보존·타입 분류·JSON 영속화). 단위테스트 6종 통과
 - ✅ **S3 (카드 그리드 UI) 구현** — `src/renderer/` (3열·4:3 그리드·타입탭·검색·키보드 탐색·클릭=복사·Enter=붙여넣기). 실사용 검증 완료
 - ✅ **붙여넣기 합성(S3e)** — nut.js(`@nut-tree-fork/nut-js`): 직전 창 focus 복원 + Ctrl+V 합성. 실사용 검증 완료

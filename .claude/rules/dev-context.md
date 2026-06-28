@@ -9,7 +9,7 @@
 - 설치 `npm install` · 개발 `npm run dev`(electron-vite dev, HMR) · 빌드 `npm run build`
 - 타입체크 `npm run typecheck`(tsc --noEmit) · 테스트 `npm test`(vitest, 15종) · 미리보기 `npm start`(preview)
 - ⚠ dev 재시작 전 좀비 정리: `Get-Process electron | ? { $_.Path -like '*copy-manager*' } | Stop-Process -Force`
-- ⚠ 창은 `show:false`로 시작 → 기동 후 **Ctrl+Shift+V**로 띄움
+- ⚠ 창은 `show:false`로 시작 → 기동 후 **Ctrl+Alt+V**로 띄움
 
 ## 현재 상태 (2026-06-28)
 - **S1~S5 전 슬라이스 코드 구현·실사용 검증·커밋 완료** (커밋 `21cabee` S4~S5, `456b15f` S1~S3). 작업 트리 클린.

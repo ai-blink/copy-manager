@@ -25,7 +25,7 @@
 | D19 | 빌드/번들 | electron-vite 5 + vite 7(peer 정렬) · main=CJS(`index.js`), preload=CJS(`.cjs`, sandbox 호환), renderer=ESM. electron·nut.js는 external |
 | D20 | 클립보드 캡처 | 폴링 방식(`clipboard.readText/readImage`) 800ms · 직전 항목과 동일 내용이면 skip (S2 inbox 해소) |
 | D21 | 저장소 | 로컬 JSON(`%APPDATA%/copy-manager/clip-history.json`) · SQLite는 후순위 (inbox 해소) |
-| D22 | 전역 핫키 기본값 | **Ctrl+Shift+V**(`CommandOrControl+Shift+V`) (inbox 해소) |
+| D22 | 전역 핫키 기본값 | **Ctrl+Alt+V**(`CommandOrControl+Alt+V`) — 구 Ctrl+Shift+V는 터미널 붙여넣기와 충돌(globalShortcut 전역 독점이라 터미널 입력을 가로챔) → 2026-06-28 변경. 설정 모달에서 변경 가능 |
 | D23 | 붙여넣기 합성 | **@nut-tree-fork/nut-js**(공식 @nut-tree/nut-js 비공개→공개 fork) · 직전 창 `getActiveWindow` 저장→`focus()` 복원→`Ctrl↓V↓V↑Ctrl↑`(autoDelayMs 40) 순차 합성 (inbox 해소) |
 | D24 | 렌더러 | **vanilla TS**(프레임워크 미도입) — S3 규모는 충분, 가상 스크롤 불필요 (inbox 해소) |
 | D25 | 스크롤 리모컨 구조 | **독립 컴포넌트** `scroll-remote.ts`(`mountScrollRemote({target,container,...})→handle`). clipboard 도메인 비의존(입력=스크롤 대상/경계, 출력=`target.scrollTop`). 드웰/스크롤은 rAF 기반. 기본값: 드웰 700ms·속도 6px/frame·투명도 0.65. 전역판 분리 시 이 파일만 떼어냄(D18) (S4) |

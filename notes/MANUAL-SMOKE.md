@@ -13,7 +13,7 @@ npm run dev      # electron-vite dev (HMR) — 또는 npm run build && npm start
 
 ## 기동 확인 (2026-06-28)
 - `npm run dev` → main/preload/renderer 빌드 + **Electron 프로세스 기동까지 무에러 확인**(18초 폴링).
-- ⚠ **창은 `show:false`로 시작** → 기동 직후 화면에 보이지 않음. **Ctrl+Shift+V로 띄울 것**(아래 M3). 이것이 win+v 대체 설계(핫키 호출형).
+- ⚠ **창은 `show:false`로 시작** → 기동 직후 화면에 보이지 않음. **Ctrl+Alt+V로 띄울 것**(아래 M3). 이것이 win+v 대체 설계(핫키 호출형).
 
 ### 트러블슈팅 (기동 실패 시)
 - `Error: Electron uninstall` / `Electron failed to install correctly`:
@@ -27,11 +27,11 @@ npm run dev      # electron-vite dev (HMR) — 또는 npm run build && npm start
 |---|------|-----------|------|
 | M1 | `npm run dev` 실행 | 앱이 기동되고 콘솔 에러 없음 | ✅ 2026-06-28 기동·무에러 |
 | M2 | 창 스타일 확인 | **테두리 없음(frameless)** · 항상 위(alwaysOnTop) · 배경 반투명(transparent) · 둥근 모서리 | ✅ 스크린샷 확인(frameless·다크 반투명). alwaysOnTop 별도 미확인 |
-| M3 | 전역 핫키 토글 | 다른 앱에 포커스가 있어도 **Ctrl+Shift+V** 누르면 창이 뜨고, 다시 누르면 숨음 | ✅ 핫키로 창 등장 확인(show:false 시작 → 핫키로 표시됨). 재누름 숨김은 미확인 |
+| M3 | 전역 핫키 토글 | 다른 앱에 포커스가 있어도 **Ctrl+Alt+V** 누르면 창이 뜨고, 다시 누르면 숨음 | ✅ 핫키로 창 등장 확인(show:false 시작 → 핫키로 표시됨). 재누름 숨김은 미확인 |
 | M4 | blur → 자동숨김 | 창이 뜬 상태에서 **바깥(다른 앱)을 클릭**하면 창이 사라짐 | ⬜ |
 | M5 | 핀 유지(핀이면 안 닫힘) | DevTools 콘솔에서 `copyManager.setPinned(true)` 실행 후 바깥 클릭 → **창 유지**. `copyManager.setPinned(false)` 후 바깥 클릭 → 숨음 | ⬜ |
 
-> M3 핫키 등록 실패 로그(`전역 핫키 등록 실패`)가 보이면 다른 앱이 Ctrl+Shift+V 를 선점한 것 — 충돌 앱 종료 후 재시도.
+> M3 핫키 등록 실패 로그(`전역 핫키 등록 실패`)가 보이면 다른 앱이 Ctrl+Alt+V 를 선점한 것 — 충돌 앱 종료 후 재시도.
 
 ## 검증 항목 (S2 — 클립보드 캡처/저장)
 
@@ -48,7 +48,7 @@ npm run dev      # electron-vite dev (HMR) — 또는 npm run build && npm start
 
 | # | 절차 | 기대 결과 | 결과 |
 |---|------|-----------|------|
-| M10 | 카드 그리드 | Ctrl+Shift+V로 창 열기 → 복사 기록이 3열·4:3 카드로 표시(한 화면 9개+) | ✅ |
+| M10 | 카드 그리드 | Ctrl+Alt+V로 창 열기 → 복사 기록이 3열·4:3 카드로 표시(한 화면 9개+) | ✅ |
 | M11 | 타입 탭/검색 | 전체/텍스트/이미지/링크/코드 탭 클릭 필터 + 검색창 입력 필터 | ✅ |
 | M12 | 키보드 탐색 | ←→↑↓로 카드 이동(보라 선택 테두리), 조작 중 창 안 닫힘(D6) | ✅ |
 | M13 | 클릭=복사 | 카드 클릭 → "✓ 복사됨" 플래시 + 클립보드에 적재(D12) | ✅ |

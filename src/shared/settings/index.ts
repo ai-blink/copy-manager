@@ -27,7 +27,7 @@ export interface AppSettings {
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
-  hotkey: 'CommandOrControl+Shift+V',
+  hotkey: 'CommandOrControl+Alt+V',
   cols: 3,
   keepCount: 50,
   remoteOpacity: 0.65,
