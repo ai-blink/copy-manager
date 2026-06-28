@@ -15,7 +15,6 @@ const TYPE_LABEL: Record<ClipType, string> = {
 }
 
 let cols = 3 // D4: 한 줄 카드 수(설정 모달에서 2~5 변경). 시작값 3.
-let curKeepOpen = true // D5(갱신): 창 유지 여부. 설정 keepOpen 반영(applySettings).
 
 let items: ClipItem[] = [] // 최신이 앞(store 는 [old...new] 라 reverse)
 let tab = '전체'
@@ -410,10 +409,6 @@ function applySettings(s: AppSettings): void {
   remote.setDwellMs(s.dwellMs)
   remote.setSpeed(s.scrollSpeed)
   remote.setMode(s.remoteMode)
-  curKeepOpen = s.keepOpen
-  const pinBtn = $('winPinBtn')
-  pinBtn.classList.toggle('on', s.keepOpen)
-  pinBtn.title = s.keepOpen ? '창 유지 켜짐 — 클릭하면 자동숨김' : '자동숨김 — 클릭하면 창 유지'
   syncSettingsControls(s)
   updateRowH()
 }
@@ -499,8 +494,17 @@ $('clearBtn').addEventListener('click', () => {
 })
 // ✕ 닫기 — 창 숨김(핫키 재누름과 동일 효과). D5 갱신
 $('closeBtn').addEventListener('click', () => window.copyManager.hideWindow())
-// 📌 창 유지 토글(영속). keepOpen=true 면 blur 로 안 닫힘
-$('winPinBtn').addEventListener('click', () => void patchSettings({ keepOpen: !curKeepOpen }))
+// 📌 항상 위(alwaysOnTop) 토글. 창 유지(keepOpen)와 별개 — 항상위만 on/off.
+const winPinBtn = $('winPinBtn')
+function setAotBtn(on: boolean): void {
+  winPinBtn.classList.toggle('on', on)
+  winPinBtn.title = on ? '항상 위 켜짐 — 클릭하면 해제' : '항상 위 꺼짐 — 클릭하면 켜기'
+}
+setAotBtn(true) // 창은 alwaysOnTop=true 로 시작
+winPinBtn.addEventListener('click', () => {
+  void window.copyManager.toggleAlwaysOnTop().then(setAotBtn)
+})
+// 창 유지(keepOpen)는 설정 "창 유지" 체크박스 전용
 $<HTMLInputElement>('keepOpen').addEventListener('change', (e) =>
   void patchSettings({ keepOpen: (e.target as HTMLInputElement).checked })
 )

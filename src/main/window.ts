@@ -10,6 +10,8 @@ type NutWindow = Awaited<ReturnType<typeof getActiveWindow>>
 let win: BrowserWindow | null = null
 // 창 유지 여부(설정 keepOpen, 기본 true). 시작 시 settings 에서 주입.
 let keepOpen = true
+// 항상 위(alwaysOnTop) 토글 상태(세션, 기본 true). 헤더 📌 로 토글.
+let alwaysOnTop = true
 // S3e: 창을 열기 직전의 활성 윈도우(직전 앱) — 붙여넣기 시 포커스 복원 대상.
 let lastActiveWindow: NutWindow | null = null
 
@@ -23,7 +25,10 @@ export function createWindow(): BrowserWindow {
     transparent: true, // transparent
     show: false,
     resizable: true,
-    skipTaskbar: true,
+    // 작업표시줄 + Alt+Tab 에 표시(key-demo-osk FocusProtection 패턴 이식).
+    // skipTaskbar:true 는 WS_EX_TOOLWINDOW 를 붙여 작업표시줄·Alt+Tab 에서 제외함 → false 로 고정.
+    // (OSK 의 WS_EX_NOACTIVATE 는 이식 안 함: copy-manager 는 열릴 때 포커스를 받아야 함)
+    skipTaskbar: false,
     webPreferences: {
       preload: join(__dirname, '../preload/index.cjs'),
       contextIsolation: true, // 보안 기본값
@@ -79,6 +84,17 @@ export function isKeepOpen(): boolean {
 /** ✕ 버튼/명시적 닫기 — 창 숨김. */
 export function hideWindow(): void {
   win?.hide()
+}
+
+/** 헤더 📌 — 항상 위(alwaysOnTop) 토글. 새 상태 반환. */
+export function toggleAlwaysOnTop(): boolean {
+  alwaysOnTop = !alwaysOnTop
+  win?.setAlwaysOnTop(alwaysOnTop)
+  return alwaysOnTop
+}
+
+export function isAlwaysOnTop(): boolean {
+  return alwaysOnTop
 }
 
 export function getWindow(): BrowserWindow | null {

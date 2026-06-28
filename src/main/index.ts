@@ -7,7 +7,14 @@ import {
   type ClipItem
 } from '../shared/clipboard-store'
 import { SettingsStore, DEFAULT_SETTINGS, type AppSettings } from '../shared/settings'
-import { createWindow, getWindow, setKeepOpen, hideWindow, restoreLastActiveWindow } from './window'
+import {
+  createWindow,
+  getWindow,
+  setKeepOpen,
+  hideWindow,
+  toggleAlwaysOnTop,
+  restoreLastActiveWindow
+} from './window'
 import { registerHotkey, unregisterHotkey, reRegisterHotkey } from './hotkey'
 import { sendCtrlV } from './paste'
 
@@ -93,6 +100,9 @@ function registerIpc(s: ClipboardStore): void {
   ipcMain.on('window:hide', () => {
     hideWindow()
   })
+
+  // 헤더 📌 — 항상 위(alwaysOnTop) 토글. 새 상태 반환
+  ipcMain.handle('window:toggle-aot', (): boolean => toggleAlwaysOnTop())
 
   // 클릭=복사: 클립보드에 쓰기만(창 유지) — D12
   ipcMain.handle('clip:copy', (_event, rawId: unknown): boolean => {
