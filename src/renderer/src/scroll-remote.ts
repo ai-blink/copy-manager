@@ -30,6 +30,8 @@ export interface ScrollRemoteHandle {
   setDwellMs(ms: number): void
   setSpeed(px: number): void
   setOpacity(op: number): void
+  /** 리모컨 표시/숨김. 숨길 때 진행 중인 드웰·스크롤을 즉시 정지 (D31) */
+  setVisible(on: boolean): void
   destroy(): void
 }
 
@@ -180,6 +182,10 @@ export function mountScrollRemote(opts: ScrollRemoteOptions): ScrollRemoteHandle
     },
     setOpacity(op: number): void {
       remote.style.setProperty('--remote-op', String(op))
+    },
+    setVisible(on: boolean): void {
+      if (!on) stoppers.forEach((fn) => fn())
+      remote.style.display = on ? '' : 'none'
     },
     destroy(): void {
       stoppers.forEach((fn) => fn())

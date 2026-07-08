@@ -398,6 +398,7 @@ function syncSettingsControls(s: AppSettings): void {
   document
     .querySelectorAll<HTMLElement>('#setModeRow .chip')
     .forEach((c) => c.classList.toggle('on', c.dataset['mode'] === s.remoteMode))
+  $<HTMLInputElement>('remoteEnabled').checked = s.remoteEnabled
   $<HTMLInputElement>('keepOpen').checked = s.keepOpen
   $<HTMLInputElement>('rebootReset').checked = s.rebootReset
   $<HTMLInputElement>('contentProtection').checked = s.contentProtection
@@ -411,6 +412,7 @@ function applySettings(s: AppSettings): void {
   remote.setDwellMs(s.dwellMs)
   remote.setSpeed(s.scrollSpeed)
   remote.setMode(s.remoteMode)
+  remote.setVisible(s.remoteEnabled)
   syncSettingsControls(s)
   updateRowH()
 }
@@ -506,6 +508,10 @@ setAotBtn(true) // 창은 alwaysOnTop=true 로 시작
 winPinBtn.addEventListener('click', () => {
   void window.copyManager.toggleAlwaysOnTop().then(setAotBtn)
 })
+// 스크롤 리모컨 표시(remoteEnabled) — 설정 "스크롤 리모컨 사용" 체크박스 전용 (D31)
+$<HTMLInputElement>('remoteEnabled').addEventListener('change', (e) =>
+  void patchSettings({ remoteEnabled: (e.target as HTMLInputElement).checked })
+)
 // 창 유지(keepOpen)는 설정 "창 유지" 체크박스 전용
 $<HTMLInputElement>('keepOpen').addEventListener('change', (e) =>
   void patchSettings({ keepOpen: (e.target as HTMLInputElement).checked })
