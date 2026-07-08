@@ -28,6 +28,8 @@ export interface AppSettings {
   rebootReset: boolean
   /** 화면 캡처 방지: true 면 스크린샷/녹화/화면공유에서 창 제외 (보안, D28) */
   contentProtection: boolean
+  /** 윈도우 시작(로그인) 시 앱 자동 실행 (D30). 패키징된 앱에서 정상 동작 */
+  launchAtStartup: boolean
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -41,7 +43,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
   keepOpen: true,
   rebootReset: false,
   // 보안 우선 기본값(D28): 민감 클립보드 내용이 화면 공유/녹화에 새지 않도록 기본 활성.
-  contentProtection: true
+  contentProtection: true,
+  // D30: 자동 실행은 사용자가 명시적으로 켜야 하는 옵트인(기본 꺼짐).
+  launchAtStartup: false
 }
 
 interface SettingsPersist {

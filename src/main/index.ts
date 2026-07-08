@@ -51,6 +51,19 @@ function notifySettings(s: AppSettings): void {
   getWindow()?.webContents.send('settings:changed', s)
 }
 
+/**
+ * D30: 윈도우 시작(로그인) 시 자동 실행을 OS 로그인 항목에 반영.
+ * Windows 에서는 `HKCU\...\Run` 레지스트리에 실행 파일 경로를 등록/해제한다.
+ * dev(비패키징)에서는 execPath 가 electron.exe 라 자동 실행이 무의미 → 스킵(설정값은 저장됨).
+ */
+function applyLaunchAtStartup(enabled: boolean): void {
+  if (!app.isPackaged) {
+    console.warn('[copy-manager] launchAtStartup 는 패키징(빌드)된 앱에서만 반영됩니다(dev 스킵).')
+    return
+  }
+  app.setLoginItemSettings({ openAtLogin: enabled })
+}
+
 /** 설정 변경의 main 측 부수효과 적용: 핫키 재등록 · 유지 개수 변경. */
 function applySettingsSideEffects(prev: AppSettings, next: AppSettings, s: ClipboardStore): void {
   if (next.hotkey !== prev.hotkey) {
@@ -66,6 +79,9 @@ function applySettingsSideEffects(prev: AppSettings, next: AppSettings, s: Clipb
   }
   if (next.contentProtection !== prev.contentProtection) {
     setContentProtection(next.contentProtection) // D28: 캡처 방지 즉시 반영
+  }
+  if (next.launchAtStartup !== prev.launchAtStartup) {
+    applyLaunchAtStartup(next.launchAtStartup) // D30: 자동 실행 즉시 반영
   }
 }
 
@@ -201,6 +217,7 @@ app.whenReady().then(async () => {
   store.setMaxSize(cfg.keepCount) // 저장된 유지 개수 반영(필요 시 축출)
   setKeepOpen(cfg.keepOpen) // D5 갱신: 저장된 창 유지 설정 반영
   setContentProtection(cfg.contentProtection) // D28: 창 생성 전 주입 → createWindow 에서 적용
+  applyLaunchAtStartup(cfg.launchAtStartup) // D30: 저장된 자동 실행 설정을 OS 로그인 항목과 동기화
   await store.save()
 
   const win = createWindow()

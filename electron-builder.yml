@@ -1,0 +1,36 @@
+# electron-builder 패키징 설정 (Windows 전용 개인 도구)
+# 빌드: `npm run dist` → electron-vite build 로 out/ 생성 후 이 설정으로 패키징.
+appId: com.copymanager.app
+productName: copy-manager
+
+directories:
+  buildResources: build # 아이콘 등(없으면 electron 기본 아이콘 사용)
+  output: release # 패키징 산출물 위치(release/)
+
+# 패키징에 포함할 파일. node_modules 의 production 의존성은 자동 포함(nut.js 포함).
+files:
+  - out/**
+  - package.json
+  - '!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}'
+  - '!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}'
+  - '!**/*.{map,ts}'
+
+# nut.js 네이티브 바인딩(.node)은 asar 내부에서 로드 불가 → 언팩.
+asarUnpack:
+  - '**/node_modules/@nut-tree-fork/**'
+  - '**/*.node'
+
+# nut.js 는 prebuilt 바이너리(dev 에서 electron 42 ABI 로 이미 로드 검증됨) → rebuild 금지.
+npmRebuild: false
+
+win:
+  target:
+    - nsis
+  # icon: build/icon.ico  # 아이콘 파일 준비되면 주석 해제
+
+nsis:
+  oneClick: false # 설치 마법사 표시(경로 선택 등)
+  perMachine: false # 사용자 폴더 설치(관리자 권한 불필요, 자동실행 HKCU 와 정합)
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true

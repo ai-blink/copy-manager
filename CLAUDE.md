@@ -36,4 +36,12 @@ Windows 11 `win+v`(클립보드 기록 창)의 불편을 해소하는 **개인�
 
 ## 실행
 - 설치 `npm install` · 개발 `npm run dev` · 빌드 `npm run build` · 타입체크 `npm run typecheck` · 테스트 `npm test`
+- 패키징 `npm run dist`(electron-builder, Windows NSIS) → `release\copy-manager Setup <ver>.exe`(설치본) + `release\win-unpacked\copy-manager.exe`(무설치). ⚠ 자동 실행(D30)은 이 패키징된 앱에서만 실제 반영(dev 스킵). 코드 서명 없음(SmartScreen 경고 무방)
 - 스택: Electron 42 + electron-vite 5 + vite 8 + vitest 4 + TypeScript 6(strict) · 저장=로컬 JSON(`%APPDATA%\copy-manager\clip-history.json`)
+## Cross-Project Delivery Guard
+
+- Follow `C:/ai/projects/AGENT_EXECUTION_GUARDRAILS.md` for implementation evidence and recurrence prevention.
+- For implementation requests, planning, research, docs, and handoff are not completion evidence unless explicitly requested.
+- Subagents are off by default for delivery. When explicitly requested, use at most one read-only reviewer or explorer unless this repo's core task is agent orchestration.
+- Subagent findings must be classified as `BLOCKER`, `FOLLOW_UP`, or `IGNORE_FOR_NOW`; apply only current-scope `BLOCKER`s.
+- The lead or parent Codex owns integration, final verification, and commits.

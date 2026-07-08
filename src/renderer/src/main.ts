@@ -401,6 +401,7 @@ function syncSettingsControls(s: AppSettings): void {
   $<HTMLInputElement>('keepOpen').checked = s.keepOpen
   $<HTMLInputElement>('rebootReset').checked = s.rebootReset
   $<HTMLInputElement>('contentProtection').checked = s.contentProtection
+  $<HTMLInputElement>('launchAtStartup').checked = s.launchAtStartup
 }
 
 function applySettings(s: AppSettings): void {
@@ -512,6 +513,10 @@ $<HTMLInputElement>('keepOpen').addEventListener('change', (e) =>
 // 화면 캡처 방지(contentProtection) — 설정 "화면 캡처 방지" 체크박스 전용 (D28)
 $<HTMLInputElement>('contentProtection').addEventListener('change', (e) =>
   void patchSettings({ contentProtection: (e.target as HTMLInputElement).checked })
+)
+// 윈도우 시작 시 자동 실행(launchAtStartup) — 설정 체크박스 전용 (D30)
+$<HTMLInputElement>('launchAtStartup').addEventListener('change', (e) =>
+  void patchSettings({ launchAtStartup: (e.target as HTMLInputElement).checked })
 )
 
 // 다른 경로로 설정 변경 시 동기화
