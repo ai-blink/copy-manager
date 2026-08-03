@@ -10,7 +10,7 @@ type NutWindow = Awaited<ReturnType<typeof getActiveWindow>>
 let win: BrowserWindow | null = null
 // 창 유지 여부(설정 keepOpen, 기본 true). 시작 시 settings 에서 주입.
 let keepOpen = true
-// 항상 위(alwaysOnTop) 토글 상태(세션, 기본 true). 헤더 📌 로 토글.
+// 항상 위(alwaysOnTop) 토글 상태(기본 true). 시작 시 저장된 설정을 주입한다.
 let alwaysOnTop = true
 // 화면 캡처 방지(content protection, D28). 기본 true(보안 우선). 시작 시 settings 에서 주입.
 // Windows: SetWindowDisplayAffinity(WDA_EXCLUDEFROMCAPTURE, Win10 2004+) → 캡처에서 제외.
@@ -25,7 +25,7 @@ export function createWindow(): BrowserWindow {
     width: 760,
     height: 560,
     frame: false, // frameless
-    alwaysOnTop: true, // alwaysOnTop
+    alwaysOnTop,
     transparent: true, // transparent
     show: false,
     resizable: true,
@@ -102,6 +102,12 @@ export function toggleAlwaysOnTop(): boolean {
 
 export function isAlwaysOnTop(): boolean {
   return alwaysOnTop
+}
+
+/** 저장된 항상 위 설정을 적용한다. 창 생성 전이면 다음 창 생성 시 반영된다. */
+export function setAlwaysOnTop(value: boolean): void {
+  alwaysOnTop = value
+  win?.setAlwaysOnTop(value)
 }
 
 /** 화면 캡처 방지 토글(설정 contentProtection, D28). true 면 스크린샷/녹화/화면공유에서 창 제외.

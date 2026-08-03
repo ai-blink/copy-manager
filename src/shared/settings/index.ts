@@ -26,6 +26,8 @@ export interface AppSettings {
   remoteEnabled: boolean
   /** 창 유지: true 면 포커스를 잃어도 안 닫힘. false 면 blur→자동숨김 (D5 갱신) */
   keepOpen: boolean
+  /** 항상 위: true 면 다른 창 위에 표시. 헤더 📌 토글값을 재호출·재시작 뒤에도 유지 */
+  alwaysOnTop: boolean
   /** 재부팅(앱 재시작) 시 설정을 기본값으로 리셋 (D17) */
   rebootReset: boolean
   /** 화면 캡처 방지: true 면 스크린샷/녹화/화면공유에서 창 제외 (보안, D28) */
@@ -45,6 +47,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   // D31: 스크롤 리모컨은 옵트인(기본 꺼짐) — 키보드/휠 탐색으로 충분한 사용자를 위해.
   remoteEnabled: false,
   keepOpen: true,
+  alwaysOnTop: true,
   rebootReset: false,
   // 보안 우선 기본값(D28): 민감 클립보드 내용이 화면 공유/녹화에 새지 않도록 기본 활성.
   contentProtection: true,

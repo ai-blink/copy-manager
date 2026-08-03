@@ -8,7 +8,7 @@
 | D2 | 사용자 | 본인 개인용(단일 사용자), 한국어 |
 | D3 | 레이아웃 | **B 검색우선 + 카드 그리드** |
 | D4 | 그리드 | 한 줄 **3개 기본**(2~5 설정 가능), 카드 비율 **4:3 균일**(행 높이 JS 고정→겹침 방지) |
-| D5 | 창 닫힘 | **기본 창 유지**(blur 무시) — 닫기=핫키 재누름 또는 ✕ 버튼. 자동숨김 원하면 설정 `keepOpen` 해제(설정 체크박스 전용). 헤더 **📌는 항상 위(alwaysOnTop) 토글**(창 유지와 별개, 세션). ※2026-06-28 기본값 반전(기존: 기본 자동숨김+세션 핀) |
+| D5 | 창 닫힘 | **기본 창 유지**(blur 무시) — 닫기=핫키 재누름 또는 ✕ 버튼. 자동숨김 원하면 설정 `keepOpen` 해제(설정 체크박스 전용). 헤더 **📌는 항상 위(alwaysOnTop) 토글**(창 유지와 별개, 설정에 영속). ※2026-06-28 기본값 반전(기존: 기본 자동숨김+세션 핀), 2026-08-03 항상 위 상태 영속화 |
 | D6 | 키보드 | ←→↑↓ 그리드 탐색, **조작 중 창 안 닫힘** |
 | D7 | 히스토리 유지 | **기본 50개**(설정 가능), 초과분 오래된 것부터 삭제, **핀 항목은 카운트 제외·영구 보존** |
 | D8 | 스크롤 리모컨 | **창 내부 플로팅**(창 영역 내 자유 드래그). ▲▼⚙ 3버튼. 4모서리·도킹 개념 **폐기** |
@@ -29,7 +29,7 @@
 | D23 | 붙여넣기 합성 | **@nut-tree-fork/nut-js**(공식 @nut-tree/nut-js 비공개→공개 fork) · 직전 창 `getActiveWindow` 저장→`focus()` 복원→`Ctrl↓V↓V↑Ctrl↑`(autoDelayMs 40) 순차 합성 (inbox 해소) |
 | D24 | 렌더러 | **vanilla TS**(프레임워크 미도입) — S3 규모는 충분, 가상 스크롤 불필요 (inbox 해소) |
 | D25 | 스크롤 리모컨 구조 | **독립 컴포넌트** `scroll-remote.ts`(`mountScrollRemote({target,container,...})→handle`). clipboard 도메인 비의존(입력=스크롤 대상/경계, 출력=`target.scrollTop`). 드웰/스크롤은 rAF 기반. 기본값: 드웰 700ms·속도 6px/frame·투명도 0.65. 전역판 분리 시 이 파일만 떼어냄(D18) (S4) |
-| D26 | 설정 저장소 | **로컬 JSON** `settings.json`(`%APPDATA%/copy-manager/`) · `SettingsStore`(electron 무관, 누락 키 기본값 보강). 항목: hotkey·keepOpen·cols·keepCount·remoteOpacity·dwellMs·scrollSpeed·remoteMode·rebootReset·**contentProtection**(D28). 설정 모달이 단일 소스, 변경 즉시 영속+적용 (S5) |
+| D26 | 설정 저장소 | **로컬 JSON** `settings.json`(`%APPDATA%/copy-manager/`) · `SettingsStore`(electron 무관, 누락 키 기본값 보강). 항목: hotkey·keepOpen·**alwaysOnTop**·cols·keepCount·remoteOpacity·dwellMs·scrollSpeed·remoteMode·rebootReset·**contentProtection**(D28). 설정 모달이 단일 소스, 변경 즉시 영속+적용 (S5) |
 | D27 | 재부팅 리셋 동작 | rebootReset=true면 **앱 시작 시 `resetToDefaults()`** 호출(나머지 기본값 복원, rebootReset 플래그 자체는 유지 → 켜둔 채 계속 리셋). 핫키/유지개수 변경은 main 부수효과(재등록·setMaxSize)로 적용 (S5) |
 | D28 | 화면 캡처 방지(보안) | 스크린샷·녹화·화면공유·원격 캡처에서 창 제외 → 클립보드 민감 내용 유출 방지. **`BrowserWindow.setContentProtection`**(Windows: `SetWindowDisplayAffinity` WDA_EXCLUDEFROMCAPTURE, Win10 2004+ / 구버전은 WDA_MONITOR 검은색 폴백). 설정 `contentProtection` 토글, **기본값=true**(보안 우선, 데모 시 해제 가능). `window.ts` createWindow 직후 적용 + `setContentProtection()` 래퍼로 즉시 토글, main 시작 시·`settings:set` 부수효과에서 반영. 한계: RDP 등 일부 원격 경로·물리 카메라 촬영은 미보장(문서 명시) (2026-06-29) |
 | D29 | 저장 암호화(유출 방지) | `clip-history.json`을 **Electron `safeStorage`(Windows DPAPI, 현재 사용자 계정에 묶임)**로 암호화 → 파일이 유출돼도 타 계정/머신 복호화 불가. `clipboard-store`는 electron 비의존 유지 → **`Cipher` 포트(encrypt/decrypt) 주입**, 기본 `IDENTITY_CIPHER`(평문, 테스트용). `src/main/cipher.ts`의 `createSafeStorageCipher()`가 DPAPI 구현 주입. 봉투 포맷 `{v:2,alg:'safeStorage',data:base64}`. **구 평문 파일은 load 시 통과 → 첫 save 때 자동 암호화 마이그레이션**. DPAPI 미가용 환경은 평문 폴백+경고(데이터 손실 방지). `settings.json`은 비민감이라 평문 유지. (2026-06-29) |

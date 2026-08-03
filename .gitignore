@@ -12,3 +12,4 @@ notes/transfers/
 # intake / 세션 훅 마커(프로젝트 소스 아님)
 .intake-done
 .intake-skip
+.doc-update-done

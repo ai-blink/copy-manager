@@ -18,6 +18,7 @@
 - **버그픽스: 프레임리스 창 드래그 이동** (2026-06-29, 커밋 `2ad140b`) — `.head`에 `-webkit-app-region: drag`, `.hbtn`에 no-drag.
 - **스크롤 리모컨 on/off(D31) 구현·GUI 검증 완료** (2026-07-09) — 설정 `remoteEnabled`(기본 off, 옵트인) + `scroll-remote.ts` 핸들 `setVisible(on)`(off 시 진행 중 스크롤 정지+`display:none`). 설정 모달 체크박스(리모컨 그룹 상단)·`applySettings` 반영·구버전 settings.json 호환. typecheck·build·test 17종 그린 + dev 실동작 검증(기본 숨김·체크 토글로 표시/숨김) 성공.
 - **자동 실행(D30) 구현** (2026-07-09, 미커밋) — 설정 `launchAtStartup`(기본 off) + `app.setLoginItemSettings`. 설정 모달 체크박스·`applyLaunchAtStartup` 부수효과·시작 시 동기화. dev(비패키징) 스킵. typecheck·build·test 17종 그린.
+- **버그픽스: 항상 위 상태 영속화** (2026-08-03, v0.1.0 패키징 완료) — 헤더 📌의 `alwaysOnTop` 값을 `settings.json`에 저장하고, 창 생성·렌더러 표시 시 적용. 꺼 둔 상태는 단축키 재호출과 앱 재시작 뒤에도 유지. 테스트 17종·타입체크·프로덕션 빌드 통과.
 - **패키징 도입** (2026-07-09, 미커밋) — electron-builder 26(devDep) + `electron-builder.yml`(win NSIS·per-user·nut.js asarUnpack·npmRebuild off) + `npm run dist` 스크립트. `release\copy-manager Setup 0.1.0.exe`(100MB) + `win-unpacked` 산출. 패키징 exe 스모크 통과(크래시 없음·네이티브 로드 OK). `release/` gitignore. 자동실행 실제 등록(HKCU\Run)은 설치 후 GUI 체크로 수동 검증 필요.
 - 남은 것:
   - **보안 후속(미구현)**: 2순위 = 민감 항목 미저장(Windows 클립보드 제외 마커 `ExcludeClipboardContentFromMonitorProcessing`·`CanIncludeInClipboardHistory` 존중 + 카드/시크릿 패턴 감지), 3순위 = 렌더러 CSP + 외부 내비게이션/`window.open` 차단. (실현성·범위는 다음 세션 시작 시 확인)

@@ -11,6 +11,7 @@ import {
   createWindow,
   getWindow,
   setKeepOpen,
+  setAlwaysOnTop,
   setContentProtection,
   hideWindow,
   toggleAlwaysOnTop,
@@ -122,8 +123,15 @@ function registerIpc(s: ClipboardStore): void {
     hideWindow()
   })
 
-  // 헤더 📌 — 항상 위(alwaysOnTop) 토글. 새 상태 반환
-  ipcMain.handle('window:toggle-aot', (): boolean => toggleAlwaysOnTop())
+  // 헤더 📌 — 항상 위(alwaysOnTop) 토글. 새 상태를 저장해 단축키 재호출·재시작 뒤에도 유지.
+  ipcMain.handle('window:toggle-aot', async (): Promise<boolean> => {
+    const alwaysOnTop = toggleAlwaysOnTop()
+    if (!settings) return alwaysOnTop
+    const next = settings.set({ alwaysOnTop })
+    await settings.save()
+    notifySettings(next)
+    return alwaysOnTop
+  })
 
   // 클릭=복사: 클립보드에 쓰기만(창 유지) — D12
   ipcMain.handle('clip:copy', (_event, rawId: unknown): boolean => {
@@ -216,6 +224,7 @@ app.whenReady().then(async () => {
   const cfg = settings.get()
   store.setMaxSize(cfg.keepCount) // 저장된 유지 개수 반영(필요 시 축출)
   setKeepOpen(cfg.keepOpen) // D5 갱신: 저장된 창 유지 설정 반영
+  setAlwaysOnTop(cfg.alwaysOnTop) // 헤더 📌 상태를 단축키 재호출·앱 재시작 뒤에도 유지
   setContentProtection(cfg.contentProtection) // D28: 창 생성 전 주입 → createWindow 에서 적용
   applyLaunchAtStartup(cfg.launchAtStartup) // D30: 저장된 자동 실행 설정을 OS 로그인 항목과 동기화
   await store.save()

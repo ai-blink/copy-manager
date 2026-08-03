@@ -407,6 +407,7 @@ function syncSettingsControls(s: AppSettings): void {
 
 function applySettings(s: AppSettings): void {
   cols = s.cols
+  setAotBtn(s.alwaysOnTop)
   document.documentElement.style.setProperty('--cols', String(s.cols))
   remote.setOpacity(s.remoteOpacity)
   remote.setDwellMs(s.dwellMs)
@@ -504,7 +505,6 @@ function setAotBtn(on: boolean): void {
   winPinBtn.classList.toggle('on', on)
   winPinBtn.title = on ? '항상 위 켜짐 — 클릭하면 해제' : '항상 위 꺼짐 — 클릭하면 켜기'
 }
-setAotBtn(true) // 창은 alwaysOnTop=true 로 시작
 winPinBtn.addEventListener('click', () => {
   void window.copyManager.toggleAlwaysOnTop().then(setAotBtn)
 })
