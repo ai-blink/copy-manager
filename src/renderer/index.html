@@ -7,7 +7,7 @@
       http-equiv="Content-Security-Policy"
       content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:"
     />
-    <title>copy-manager</title>
+    <title>클립보드</title>
     <style>
       :root {
         color-scheme: dark;
@@ -567,6 +567,14 @@
         color: var(--accent);
         background: rgba(192, 123, 240, 0.1);
       }
+      .placement-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 6px;
+      }
+      .placement-grid .chip {
+        text-align: center;
+      }
       .row {
         display: flex;
         gap: 6px;
@@ -642,7 +650,7 @@
   </head>
   <body>
     <div class="head">
-      <span class="title">클립보드</span>
+      <span class="title" id="appTitle">클립보드</span>
       <span class="state" id="state"></span>
       <span class="hbtns">
         <span class="hbtn" id="winPinBtn" title="항상 위 토글">📌</span>
@@ -750,6 +758,33 @@
             <div class="row" id="setColsRow">
               <span class="chip" data-cols="2">2</span><span class="chip" data-cols="3">3</span>
               <span class="chip" data-cols="4">4</span><span class="chip" data-cols="5">5</span>
+              <span class="chip" data-cols="6">6</span><span class="chip" data-cols="7">7</span>
+              <span class="chip" data-cols="8">8</span>
+            </div>
+          </div>
+          <div class="set-grp">
+            <div class="lbl">전체 UI 배율 <span class="v" id="setUiScaleV">100%</span></div>
+            <input type="range" id="setUiScale" min="75" max="150" step="5" value="100" />
+            <div class="note" style="margin-top: 6px">
+              창 크기는 그대로 두고 앱 전체를 75~150%로 확대·축소합니다. 작게 하면 한 화면에 더 많은
+              카드를 볼 수 있습니다.
+            </div>
+          </div>
+          <div class="set-grp">
+            <div class="lbl">창 배치</div>
+            <div class="placement-grid" id="setPlacementGrid">
+              <span class="chip" data-placement="top-left">↖ 좌상</span>
+              <span class="chip" data-placement="top">↑ 상단</span>
+              <span class="chip" data-placement="top-right">↗ 우상</span>
+              <span class="chip" data-placement="left">← 좌</span>
+              <span class="chip" data-placement="center">• 중앙</span>
+              <span class="chip" data-placement="right">→ 우</span>
+              <span class="chip" data-placement="bottom-left">↙ 좌하</span>
+              <span class="chip" data-placement="bottom">↓ 하단</span>
+              <span class="chip" data-placement="bottom-right">↘ 우하</span>
+            </div>
+            <div class="note" style="margin-top: 6px">
+              현재 창이 있는 모니터의 작업 영역(작업표시줄 제외) 안에서 즉시 이동합니다.
             </div>
           </div>
           <div class="set-grp">

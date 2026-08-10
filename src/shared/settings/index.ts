@@ -6,12 +6,32 @@ import { dirname } from 'node:path'
 // 렌더러는 이 파일에서 타입만 `import type` 으로 가져온다(런타임 node:fs 미번들).
 
 export type RemoteMode = 'dwell' | 'click'
+export type WindowPlacement =
+  | 'top-left'
+  | 'top'
+  | 'top-right'
+  | 'left'
+  | 'center'
+  | 'right'
+  | 'bottom-left'
+  | 'bottom'
+  | 'bottom-right'
+export interface WindowPosition {
+  x: number
+  y: number
+}
 
 export interface AppSettings {
   /** 전역 핫키(Electron accelerator) */
   hotkey: string
-  /** 한 줄 카드 수 (2~5, D4) */
+  /** 한 줄 카드 수 (2~8, D32) */
   cols: number
+  /** 전체 UI 배율. Electron 렌더러 zoom factor (0.75~1.5) */
+  uiScale: number
+  /** 현재 화면 작업 영역 안의 9분할 창 배치 */
+  windowPlacement: WindowPlacement
+  /** 사용자가 헤더를 드래그해 옮긴 실제 창 좌표. 없으면 9분할 배치값을 사용한다. */
+  windowPosition: WindowPosition | null
   /** 비핀 히스토리 유지 개수 (D7) */
   keepCount: number
   /** 리모컨 평소 투명도 0~1 (D10) */
@@ -39,6 +59,9 @@ export interface AppSettings {
 export const DEFAULT_SETTINGS: AppSettings = {
   hotkey: 'CommandOrControl+Alt+V',
   cols: 3,
+  uiScale: 1,
+  windowPlacement: 'center',
+  windowPosition: null,
   keepCount: 50,
   remoteOpacity: 0.65,
   dwellMs: 700,
@@ -70,12 +93,24 @@ export class SettingsStore {
 
   /** 현재 설정의 불변 복사본. */
   get(): AppSettings {
-    return { ...this.data }
+    return {
+      ...this.data,
+      windowPosition: this.data.windowPosition ? { ...this.data.windowPosition } : null
+    }
   }
 
   /** 일부 키만 갱신(나머지 유지). 갱신된 전체 설정 반환. */
   set(patch: Partial<AppSettings>): AppSettings {
-    this.data = { ...this.data, ...patch }
+    this.data = {
+      ...this.data,
+      ...patch,
+      windowPosition:
+        patch.windowPosition === undefined
+          ? this.data.windowPosition
+          : patch.windowPosition
+            ? { ...patch.windowPosition }
+            : null
+    }
     return this.get()
   }
 

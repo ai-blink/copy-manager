@@ -1,6 +1,7 @@
-import { BrowserWindow } from 'electron'
+import { BrowserWindow, screen } from 'electron'
 import { join } from 'node:path'
 import { getActiveWindow } from '@nut-tree-fork/nut-js'
+import type { WindowPlacement, WindowPosition } from '../shared/settings'
 
 // frameless + alwaysOnTop + transparent 창. D5(갱신): 기본 "창 유지"(blur 무시).
 // keepOpen=false 일 때만 blur→hide(자동숨김). 닫기=핫키 재누름 또는 ✕ 버튼.
@@ -12,6 +13,12 @@ let win: BrowserWindow | null = null
 let keepOpen = true
 // 항상 위(alwaysOnTop) 토글 상태(기본 true). 시작 시 저장된 설정을 주입한다.
 let alwaysOnTop = true
+// 전체 UI 배율(설정 uiScale, 기본 100%). 창 외곽 크기는 유지하고 렌더러만 확대/축소한다.
+let uiScale = 1
+// 창 배치(설정 windowPlacement, 기본 중앙). 실제 좌표는 현재 창이 있는 디스플레이 기준으로 계산한다.
+let windowPlacement: WindowPlacement = 'center'
+// 헤더 드래그 뒤 저장한 실제 창 좌표. 없으면 9분할 배치값을 사용한다.
+let windowPosition: WindowPosition | null = null
 // 화면 캡처 방지(content protection, D28). 기본 true(보안 우선). 시작 시 settings 에서 주입.
 // Windows: SetWindowDisplayAffinity(WDA_EXCLUDEFROMCAPTURE, Win10 2004+) → 캡처에서 제외.
 // 구버전은 WDA_MONITOR(검은색) 폴백. RDP 등 일부 원격 경로는 효과가 다를 수 있음.
@@ -48,6 +55,12 @@ export function createWindow(): BrowserWindow {
 
   // D28: 화면 캡처 방지 적용(스크린샷/녹화/화면공유에서 창 제외). 시작 시 주입된 값 반영.
   win.setContentProtection(contentProtection)
+  win.webContents.setZoomFactor(uiScale)
+  if (windowPosition) {
+    applyWindowPosition()
+  } else {
+    applyWindowPlacement()
+  }
 
   return win
 }
@@ -108,6 +121,82 @@ export function isAlwaysOnTop(): boolean {
 export function setAlwaysOnTop(value: boolean): void {
   alwaysOnTop = value
   win?.setAlwaysOnTop(value)
+}
+
+/** 전체 UI 배율을 적용한다. 설정 UI의 범위(75~150%) 밖 값은 무시한다. */
+export function setUiScale(value: number): void {
+  if (!Number.isFinite(value) || value < 0.75 || value > 1.5) return
+  uiScale = value
+  win?.webContents.setZoomFactor(value)
+}
+
+/** 9분할 배치값을 보관하고, 열린 창이면 현재 디스플레이에서 즉시 이동한다. */
+export function setWindowPlacement(value: WindowPlacement): void {
+  windowPlacement = value
+  windowPosition = null
+  applyWindowPlacement()
+}
+
+/** 저장된 실제 창 좌표를 보관하고, 창이 열려 있으면 현재 모니터 작업 영역 안으로 보정해 적용한다. */
+export function setWindowPosition(value: WindowPosition | null): void {
+  windowPosition = value ? { ...value } : null
+  if (windowPosition) applyWindowPosition()
+}
+
+/** 현재 창의 실제 좌표를 불변 복사본으로 반환한다. */
+export function getWindowPosition(): WindowPosition | null {
+  if (!win) return null
+  const [x, y] = win.getPosition()
+  return { x, y }
+}
+
+/** 저장 위치가 디스플레이 구성 변경 뒤에도 화면 밖으로 나가지 않도록 가장 가까운 작업 영역 안으로 보정한다. */
+function applyWindowPosition(): void {
+  if (!win || !windowPosition) return
+
+  const display = screen.getDisplayNearestPoint(windowPosition)
+  const { x, y, width, height } = display.workArea
+  const [windowWidth, windowHeight] = win.getSize()
+  const maxX = Math.max(x, x + width - windowWidth)
+  const maxY = Math.max(y, y + height - windowHeight)
+  const targetX = Math.min(Math.max(windowPosition.x, x), maxX)
+  const targetY = Math.min(Math.max(windowPosition.y, y), maxY)
+  const [currentX, currentY] = win.getPosition()
+  if (currentX !== Math.round(targetX) || currentY !== Math.round(targetY)) {
+    win.setPosition(Math.round(targetX), Math.round(targetY))
+  }
+}
+
+/** 작업표시줄을 제외한 현재 디스플레이의 작업 영역 안에서 창을 9분할 위치로 이동한다. */
+function applyWindowPlacement(): void {
+  if (!win) return
+
+  const display = screen.getDisplayMatching(win.getBounds())
+  const { x, y, width, height } = display.workArea
+  const [windowWidth, windowHeight] = win.getSize()
+  const maxX = Math.max(x, x + width - windowWidth)
+  const maxY = Math.max(y, y + height - windowHeight)
+  const centerX = x + (width - windowWidth) / 2
+  const centerY = y + (height - windowHeight) / 2
+
+  const isLeft =
+    windowPlacement === 'top-left' ||
+    windowPlacement === 'left' ||
+    windowPlacement === 'bottom-left'
+  const isRight =
+    windowPlacement === 'top-right' ||
+    windowPlacement === 'right' ||
+    windowPlacement === 'bottom-right'
+  const isTop =
+    windowPlacement === 'top-left' || windowPlacement === 'top' || windowPlacement === 'top-right'
+  const isBottom =
+    windowPlacement === 'bottom-left' ||
+    windowPlacement === 'bottom' ||
+    windowPlacement === 'bottom-right'
+
+  const targetX = isLeft ? x : isRight ? maxX : centerX
+  const targetY = isTop ? y : isBottom ? maxY : centerY
+  win.setPosition(Math.round(targetX), Math.round(targetY))
 }
 
 /** 화면 캡처 방지 토글(설정 contentProtection, D28). true 면 스크린샷/녹화/화면공유에서 창 제외.

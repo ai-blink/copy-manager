@@ -4,6 +4,8 @@ import type { AppSettings } from '../shared/settings'
 
 // 보안: contextIsolation on 전제. 렌더러에 최소 API 표면만 노출.
 const api = {
+  /** 실행 중인 앱 버전과 실행 형태(개발/패키지) */
+  getAppInfo: (): Promise<{ version: string; mode: string }> => ipcRenderer.invoke('app:get-info'),
   /** 클립보드 히스토리 조회 */
   getHistory: (): Promise<readonly ClipItem[]> => ipcRenderer.invoke('history:get'),
   /** ✕/명시적 닫기 — 창 숨김 (D5 갱신: 창 유지 동작) */

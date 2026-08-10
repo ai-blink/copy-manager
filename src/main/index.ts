@@ -6,12 +6,21 @@ import {
   type ClipboardReader,
   type ClipItem
 } from '../shared/clipboard-store'
-import { SettingsStore, DEFAULT_SETTINGS, type AppSettings } from '../shared/settings'
+import {
+  SettingsStore,
+  DEFAULT_SETTINGS,
+  type AppSettings,
+  type WindowPosition
+} from '../shared/settings'
 import {
   createWindow,
   getWindow,
   setKeepOpen,
   setAlwaysOnTop,
+  setUiScale,
+  setWindowPlacement,
+  setWindowPosition,
+  getWindowPosition,
   setContentProtection,
   hideWindow,
   toggleAlwaysOnTop,
@@ -26,6 +35,8 @@ const HISTORY_FILE = 'clip-history.json'
 const SETTINGS_FILE = 'settings.json'
 // 붙여넣기: 창을 숨기고 직전 앱에 포커스를 복원한 뒤, 안정화 시간을 두고 Ctrl+V 합성.
 const PASTE_FOCUS_DELAY_MS = 180
+// 헤더를 드래그하는 동안 설정 파일을 계속 쓰지 않도록, 멈춘 뒤 한 번만 저장한다.
+const WINDOW_POSITION_SAVE_DELAY_MS = 250
 
 // electron clipboard 로 ClipboardReader 포트를 구현(캡처 로직 자체는 shared 모듈에).
 const electronReader: ClipboardReader = {
@@ -39,6 +50,19 @@ const electronReader: ClipboardReader = {
 let store: ClipboardStore | null = null
 let settings: SettingsStore | null = null
 let pollTimer: ReturnType<typeof setInterval> | null = null
+let windowPositionTimer: ReturnType<typeof setTimeout> | null = null
+
+function getAppInfo(): { version: string; mode: string } {
+  return {
+    version: app.getVersion(),
+    mode: app.isPackaged ? '패키지 실행' : '개발 실행'
+  }
+}
+
+function getWindowTitle(): string {
+  const { version, mode } = getAppInfo()
+  return `copy-manager v${version} · ${mode}`
+}
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
@@ -50,6 +74,35 @@ function notifyRenderer(): void {
 
 function notifySettings(s: AppSettings): void {
   getWindow()?.webContents.send('settings:changed', s)
+}
+
+function isSameWindowPosition(a: WindowPosition | null, b: WindowPosition): boolean {
+  return a?.x === b.x && a.y === b.y
+}
+
+/** 헤더 드래그가 멈춘 뒤 실제 좌표를 저장한다. */
+async function persistWindowPosition(): Promise<void> {
+  const position = getWindowPosition()
+  if (!settings || !position || isSameWindowPosition(settings.get().windowPosition, position)) return
+
+  setWindowPosition(position)
+  const next = settings.set({ windowPosition: position })
+  await settings.save()
+  notifySettings(next)
+}
+
+function scheduleWindowPositionSave(): void {
+  if (windowPositionTimer) clearTimeout(windowPositionTimer)
+  windowPositionTimer = setTimeout(() => {
+    windowPositionTimer = null
+    void persistWindowPosition().catch((err: unknown) => {
+      console.warn('[copy-manager] 창 위치 저장 실패:', err)
+    })
+  }, WINDOW_POSITION_SAVE_DELAY_MS)
+}
+
+function watchWindowPosition(win: BrowserWindow): void {
+  win.on('move', scheduleWindowPositionSave)
 }
 
 /**
@@ -77,6 +130,12 @@ function applySettingsSideEffects(prev: AppSettings, next: AppSettings, s: Clipb
   }
   if (next.keepOpen !== prev.keepOpen) {
     setKeepOpen(next.keepOpen)
+  }
+  if (next.uiScale !== prev.uiScale) {
+    setUiScale(next.uiScale)
+  }
+  if (next.windowPlacement !== prev.windowPlacement) {
+    setWindowPlacement(next.windowPlacement)
   }
   if (next.contentProtection !== prev.contentProtection) {
     setContentProtection(next.contentProtection) // D28: 캡처 방지 즉시 반영
@@ -116,6 +175,7 @@ function writeItemToClipboard(item: ClipItem): void {
 
 function registerIpc(s: ClipboardStore): void {
   // 최소 IPC 표면만 노출(보안).
+  ipcMain.handle('app:get-info', () => getAppInfo())
   ipcMain.handle('history:get', (): readonly ClipItem[] => s.getAll())
 
   // ✕ 버튼/명시적 닫기 — 창 숨김(D5 갱신: blur 자동숨김 대신 명시 닫기)
@@ -225,13 +285,18 @@ app.whenReady().then(async () => {
   store.setMaxSize(cfg.keepCount) // 저장된 유지 개수 반영(필요 시 축출)
   setKeepOpen(cfg.keepOpen) // D5 갱신: 저장된 창 유지 설정 반영
   setAlwaysOnTop(cfg.alwaysOnTop) // 헤더 📌 상태를 단축키 재호출·앱 재시작 뒤에도 유지
+  setUiScale(cfg.uiScale) // D32: 저장된 전체 UI 배율을 창 생성 시 주입
+  setWindowPlacement(cfg.windowPlacement) // D32: 저장된 9분할 배치값을 창 생성 시 주입
+  setWindowPosition(cfg.windowPosition) // D33: 헤더 드래그로 저장한 실제 좌표를 창 생성 시 복원
   setContentProtection(cfg.contentProtection) // D28: 창 생성 전 주입 → createWindow 에서 적용
   applyLaunchAtStartup(cfg.launchAtStartup) // D30: 저장된 자동 실행 설정을 OS 로그인 항목과 동기화
   await store.save()
 
   const win = createWindow()
+  win.setTitle(getWindowTitle())
   loadRenderer(win)
   registerIpc(store)
+  watchWindowPosition(win)
 
   if (!registerHotkey(cfg.hotkey)) {
     console.warn('[copy-manager] 전역 핫키 등록 실패(다른 앱이 선점했을 수 있음)')
@@ -242,6 +307,7 @@ app.whenReady().then(async () => {
     if (getWindow() === null) {
       const w = createWindow()
       loadRenderer(w)
+      watchWindowPosition(w)
     }
   })
 })
@@ -253,6 +319,11 @@ app.on('window-all-closed', () => {
 })
 
 app.on('will-quit', () => {
+  if (windowPositionTimer) {
+    clearTimeout(windowPositionTimer)
+    windowPositionTimer = null
+    void persistWindowPosition()
+  }
   unregisterHotkey()
   if (pollTimer) clearInterval(pollTimer)
 })

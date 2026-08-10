@@ -1,6 +1,6 @@
 ---
 description: 반복 실수 패턴 + 프로젝트 운영 원칙. Stop hook dev-docs-enforcer 필수 파일.
-updated: 2026-06-28
+updated: 2026-08-10
 ---
 
 # dev-feedback — copy-manager
@@ -27,3 +27,5 @@ updated: 2026-06-28
 - **preload는 CJS(.cjs)** — Electron sandbox는 ESM preload 미지원(D19).
 - **프레임리스 창이 안 움직임** — `frame:false` 창은 OS 드래그 영역이 없으면 마우스로 이동 불가.
   → 타이틀바(`.head`)에 `-webkit-app-region: drag`, 그 안의 버튼/입력(`.hbtn` 등)엔 `-webkit-app-region: no-drag`(클릭 유지). 더블클릭=최대화 부작용 가능.
+- **드래그 위치가 재실행 뒤 겹침** — 프리셋 위치만 저장하면 임의 드래그는 임시 상태가 된다.
+  → `windowPosition`을 250ms 디바운스로 저장하고, 다음 실행 때 가장 가까운 화면의 작업 영역 안으로 보정해 복원(D32).

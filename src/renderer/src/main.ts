@@ -34,6 +34,7 @@ const emptyMsgEl = $<HTMLDivElement>('emptyMsg')
 const countHintEl = $<HTMLSpanElement>('countHint')
 const searchEl = $<HTMLInputElement>('search')
 const stateEl = $<HTMLSpanElement>('state')
+const appTitleEl = $<HTMLSpanElement>('appTitle')
 
 function visible(): ClipItem[] {
   const f = filter.toLowerCase()
@@ -386,6 +387,12 @@ function syncSettingsControls(s: AppSettings): void {
   document
     .querySelectorAll<HTMLElement>('#setColsRow .chip')
     .forEach((c) => c.classList.toggle('on', Number(c.dataset['cols']) === s.cols))
+  const uiScalePct = Math.round(s.uiScale * 100)
+  $<HTMLInputElement>('setUiScale').value = String(uiScalePct)
+  $('setUiScaleV').textContent = `${uiScalePct}%`
+  document
+    .querySelectorAll<HTMLElement>('#setPlacementGrid .chip')
+    .forEach((c) => c.classList.toggle('on', c.dataset['placement'] === s.windowPlacement))
   $<HTMLInputElement>('setKeep').value = String(s.keepCount)
   $('setKeepV').textContent = String(s.keepCount)
   const opPct = Math.round(s.remoteOpacity * 100)
@@ -432,6 +439,14 @@ document
       if (n) void patchSettings({ cols: n })
     })
   )
+
+document.querySelectorAll<HTMLElement>('#setPlacementGrid .chip').forEach((c) =>
+  c.addEventListener('click', () => {
+    const placement = c.dataset['placement'] as AppSettings['windowPlacement'] | undefined
+    if (placement) void patchSettings({ windowPlacement: placement })
+  })
+)
+
 document.querySelectorAll<HTMLElement>('#setModeRow .chip').forEach((c) =>
   c.addEventListener('click', () => {
     const m = c.dataset['mode']
@@ -445,6 +460,14 @@ setKeepEl.addEventListener('input', () => {
   $('setKeepV').textContent = setKeepEl.value
 })
 setKeepEl.addEventListener('change', () => void patchSettings({ keepCount: Number(setKeepEl.value) }))
+
+const setUiScaleEl = $<HTMLInputElement>('setUiScale')
+setUiScaleEl.addEventListener('input', () => {
+  $('setUiScaleV').textContent = `${setUiScaleEl.value}%`
+})
+setUiScaleEl.addEventListener('change', () =>
+  void patchSettings({ uiScale: Number(setUiScaleEl.value) / 100 })
+)
 
 const setOpEl = $<HTMLInputElement>('setOp')
 setOpEl.addEventListener('input', () => {
@@ -532,5 +555,13 @@ async function initSettings(): Promise<void> {
   applySettings(await window.copyManager.getSettings())
 }
 
+async function initAppInfo(): Promise<void> {
+  const { version, mode } = await window.copyManager.getAppInfo()
+  const title = `클립보드 v${version} · ${mode}`
+  appTitleEl.textContent = title
+  document.title = title
+}
+
 void reload()
 void initSettings()
+void initAppInfo()

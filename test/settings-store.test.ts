@@ -39,6 +39,9 @@ describe('SettingsStore (D17)', () => {
       remoteOpacity: 0.4,
       remoteMode: 'click',
       rebootReset: true,
+      uiScale: 1.25,
+      windowPlacement: 'bottom-right',
+      windowPosition: { x: 1480, y: 220 },
       alwaysOnTop: false,
       contentProtection: false // 기본 true 와 다른 값으로 라운드트립 확인 (D28)
     })
@@ -50,6 +53,9 @@ describe('SettingsStore (D17)', () => {
     expect(b.get().remoteOpacity).toBe(0.4)
     expect(b.get().remoteMode).toBe('click')
     expect(b.get().rebootReset).toBe(true)
+    expect(b.get().uiScale).toBe(1.25)
+    expect(b.get().windowPlacement).toBe('bottom-right')
+    expect(b.get().windowPosition).toEqual({ x: 1480, y: 220 })
     expect(b.get().alwaysOnTop).toBe(false)
     expect(b.get().contentProtection).toBe(false)
   })
@@ -76,6 +82,9 @@ describe('SettingsStore (D17)', () => {
     expect(s.get().keepCount).toBe(DEFAULT_SETTINGS.keepCount) // 누락 → 기본값
     expect(s.get().hotkey).toBe(DEFAULT_SETTINGS.hotkey)
     expect(s.get().keepOpen).toBe(true) // 신규 키 누락 → 기본값 true(창 유지)
+    expect(s.get().uiScale).toBe(1) // 신규 키 누락 → 기본값 100%(원래 크기)
+    expect(s.get().windowPlacement).toBe('center') // 신규 키 누락 → 기본값 중앙
+    expect(s.get().windowPosition).toBeNull() // 신규 키 누락 → 9분할 배치값을 사용
     expect(s.get().alwaysOnTop).toBe(true) // 신규 키 누락 → 기본값 true(항상 위)
     expect(s.get().contentProtection).toBe(true) // 신규 키 누락 → 기본값 true(보안 우선, D28)
   })
