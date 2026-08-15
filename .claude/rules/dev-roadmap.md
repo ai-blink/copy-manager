@@ -2,7 +2,7 @@
 
 > 작게 → 검증 가능 단위. 전부 미착수(TODO).
 
-- [x] **S1 — Electron 셸**: frameless·alwaysOnTop·transparent 창 + 전역 핫키 토글 show/hide + blur→hide(핀 override). ▶ 검증: 핫키로 창 토글, 핀이면 포커스 잃어도 유지 — *코드 구현 완료(`src/main/`), GUI 동작은 `notes/MANUAL-SMOKE.md` 수동 검증 필요*
+- [x] **S1 — Electron 셸**: frameless·alwaysOnTop·transparent 창 + 전역 핫키로 창 복원·표시·활성화 + `keepOpen=false`일 때만 blur→hide. ▶ 검증: 핫키가 숨김·최소화·가림 상태의 창을 활성화하고, 기본값에서는 포커스를 잃어도 유지 — *코드 구현 완료(`src/main/`), GUI 동작은 `notes/MANUAL-SMOKE.md` 수동 검증 필요*
 - [x] **S2 — 클립보드 캡처/저장**: 캡처 + 50 ring buffer + 핀 영구 보존 + 로컬 영속화 + 타입 분류. ▶ 검증: 복사한 것들이 쌓이고 재시작 후에도 남음 — *로직 구현 완료(`src/shared/clipboard-store/`), 단위테스트 6종 통과(`test/clipboard-store.test.ts`)*
 - [x] **S3 — 카드 그리드 UI**: B 검색우선, 3열 설정가능, 4:3 균일, 타입 탭, 키보드 탐색(안 닫힘), 클릭=복사/Enter=붙여넣기. ▶ 검증: 한 화면 9개+, 조작 중 안 닫힘 — *구현 완료(`src/renderer/`). 클릭=복사·키보드 탐색·Enter=붙여넣기(nut.js: 직전 창 focus 복원 + Ctrl+V 합성) 실사용 검증 완료*
 - [x] **S4 — 스크롤 리모컨**: 창 내부 플로팅·드웰 게이지·클릭 모드·속도·투명도(호버 불투명)·▲▼⚙. ▶ 검증: 휠 없이 끝까지 스크롤 — *구현 완료(`src/renderer/src/scroll-remote.ts` 독립 컴포넌트, clipboard 비의존). GUI 동작은 `notes/MANUAL-SMOKE.md` M15~M17 수동 검증*

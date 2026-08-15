@@ -1,5 +1,5 @@
 import { globalShortcut } from 'electron'
-import { toggleWindow } from './window'
+import { activateWindow } from './window'
 
 // 전역 핫키 기본값 Ctrl+Alt+V (D22 갱신).
 // Ctrl+Shift+V 는 터미널 붙여넣기와 충돌(globalShortcut 은 전역 독점이라 가로챔) → Ctrl+Alt+V 로 변경.
@@ -9,7 +9,7 @@ export const DEFAULT_HOTKEY = 'CommandOrControl+Alt+V'
 /** 핫키 등록. 등록 성공 여부 반환(다른 앱이 선점했으면 false). */
 export function registerHotkey(accelerator: string = DEFAULT_HOTKEY): boolean {
   return globalShortcut.register(accelerator, () => {
-    void toggleWindow()
+    void activateWindow()
   })
 }
 

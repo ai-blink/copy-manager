@@ -7,8 +7,8 @@
 main (Node)                      renderer (창 UI)
 ├─ 창 관리                        ├─ App 셸 (검색·탭·그리드)
 │  frameless·alwaysOnTop·         ├─ ClipboardGrid (카드 4:3, 키보드 탐색)
-│  transparent, blur→hide(핀)     ├─ Card (호버 액션 📌⋯🗑️, 클릭=복사 플래시)
-├─ 전역 핫키 (globalShortcut)     ├─ ScrollRemote ★느슨결합 (드웰 게이지·드래그·투명도)
+│  transparent, blur→hide(keepOpen=false) ├─ Card (호버 액션 📌⋯🗑️, 클릭=복사 플래시)
+├─ 전역 핫키 (창 복원·표시·활성화) ├─ ScrollRemote ★느슨결합 (드웰 게이지·드래그·투명도)
 ├─ 클립보드 캡처 (폴링/후킹)      ├─ DetailModal / ConfirmModal / SettingsModal
 ├─ 히스토리 스토어 (50 ring +     └─ EmptyState
 │  핀 영구, JSON/SQLite 영속)
@@ -23,7 +23,7 @@ main (Node)                      renderer (창 UI)
 - `src/shared/settings/` — `SettingsStore`(JSON 영속·누락키 보강·재부팅 리셋·`alwaysOnTop`·`launchAtStartup`·`uiScale`·`windowPlacement`·`windowPosition` D32). electron 비의존
 - `src/renderer/src/scroll-remote.ts` — **독립 컴포넌트** `mountScrollRemote({target,container})→handle`. clipboard 비의존(입력=스크롤 대상/경계, 출력=`scrollTop`), 전역판 분리 대비 느슨 결합(D18/D25)
 - `src/renderer/src/main.ts` — 그리드·타입탭·검색·키보드 탐색·카드 액션·우클릭 메뉴·상세/확인/설정 모달·설정 적용
-- `src/main/` — `window.ts`(창·blur→hide·직전창 focus 복원·항상 위·전체 배율·9분할/드래그 좌표 복원·화면 캡처 방지)·`hotkey.ts`(전역 핫키·재등록)·`paste.ts`(Ctrl+V 합성)·`cipher.ts`(safeStorage/DPAPI 암호화 포트 구현 D29)·`index.ts`(캡처 폴링·IPC·드래그 좌표 디바운스 저장·설정 적용·cipher 주입)
+- `src/main/` — `window.ts`(창·`keepOpen=false`일 때 blur→hide·핫키의 창 복원/표시/활성화·직전창 focus 복원·항상 위·전체 배율·9분할/드래그 좌표 복원·화면 캡처 방지)·`hotkey.ts`(전역 핫키·재등록)·`paste.ts`(Ctrl+V 합성)·`cipher.ts`(safeStorage/DPAPI 암호화 포트 구현 D29)·`index.ts`(캡처 폴링·IPC·드래그 좌표 디바운스 저장·설정 적용·cipher 주입)
 - `src/preload/index.ts` — contextBridge `copyManager` API(history/copy/paste/pinItem/delete/clear/reset/settings)
 
 ## IPC 표면 (preload, contextIsolation)

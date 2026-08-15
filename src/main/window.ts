@@ -4,7 +4,7 @@ import { getActiveWindow } from '@nut-tree-fork/nut-js'
 import type { WindowPlacement, WindowPosition } from '../shared/settings'
 
 // frameless + alwaysOnTop + transparent 창. D5(갱신): 기본 "창 유지"(blur 무시).
-// keepOpen=false 일 때만 blur→hide(자동숨김). 닫기=핫키 재누름 또는 ✕ 버튼.
+// keepOpen=false 일 때만 blur→hide(자동숨김). 명시적 닫기는 ✕ 버튼만 담당한다.
 
 type NutWindow = Awaited<ReturnType<typeof getActiveWindow>>
 
@@ -65,21 +65,22 @@ export function createWindow(): BrowserWindow {
   return win
 }
 
-/** 전역 핫키 콜백: 보이면 숨기고, 숨겨져 있으면 띄워서 포커스.
- * 띄우기 직전 활성 윈도우(직전 앱)를 기록해 붙여넣기 포커스 복원에 사용. */
-export async function toggleWindow(): Promise<void> {
+/** 전역 핫키 콜백: 창을 복원·표시하고 포커스를 준다.
+ * 다른 앱이 활성 상태일 때만 그 창을 기록해 붙여넣기 포커스 복원에 사용한다. */
+export async function activateWindow(): Promise<void> {
   if (!win) return
-  if (win.isVisible()) {
-    win.hide()
-  } else {
+
+  if (!win.isFocused()) {
     try {
       lastActiveWindow = await getActiveWindow()
     } catch {
       lastActiveWindow = null
     }
-    win.show()
-    win.focus()
   }
+
+  if (win.isMinimized()) win.restore()
+  win.show()
+  win.focus()
 }
 
 /** S3e: 붙여넣기 직전, 기억해 둔 직전 앱 창에 포커스를 되돌린다(Ctrl+V 대상 확보). */
