@@ -6,4 +6,4 @@ Windows 11 `win+v`의 세 가지 불편(① 좁아 몇 개만 보임 ② 화살�
 
 성공은 테스트 통과가 아니라 **본인이 1주 써서 "win+v보다 안 답답하다"를 체감**하는 것으로 판정한다.
 
-상세: `notes/brainstorm/2026-06-28_copy-manager_design.md` · 결정: `.claude/rules/dev-decisions.md`
+상세: `notes/brainstorm/2026-06-28_copy-manager_design.md` · 결정: `rules/dev-decisions.md`

@@ -11,9 +11,9 @@ copy-manager 프로젝트를 이어서 진행한다. (경로: C:/ai/projects/cop
 - CLAUDE.md (프로젝트 개요·스택·범위)
 - notes/brainstorm/2026-06-28_copy-manager_design.md (UX 설계 정본)
 - notes/brainstorm/04_mockup.html (최신 동작 mockup, 모든 결정 반영)
-- .claude/rules/dev-decisions.md (확정 결정 D1~D18)
-- .claude/rules/dev-decisions-inbox.md (미결 질문)
-- .claude/rules/dev-roadmap.md (구현 슬라이스 S1~S5)
+- rules/dev-decisions.md (확정 결정 D1~D18)
+- rules/dev-decisions-inbox.md (미결 질문)
+- rules/dev-roadmap.md (구현 슬라이스 S1~S5)
 
 현재 상태: 브레인스토밍·설계 확정, 코드 0줄. 다음 = 로드맵 S1(Electron 셸).
 

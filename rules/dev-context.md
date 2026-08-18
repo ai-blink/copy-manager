@@ -12,5 +12,5 @@
 
 ## 핵심 경로
 - 기능/설정: `src/main/window.ts`·`src/main/index.ts`·`src/shared/settings/`·`src/renderer/`
-- 상태/결정: `.claude/rules/dev-progress.md`·`dev-decisions.md`·`dev-roadmap.md`
+- 상태/결정: `rules/dev-progress.md`·`dev-decisions.md`·`dev-roadmap.md`
 - 수동 검증: `notes/MANUAL-SMOKE.md` · 배포 이력: `CHANGELOG.md`

@@ -10,7 +10,7 @@ updated: 2026-08-10
 - **코드 변경 게이트**: Write/Edit/Bash 코드 변경 전 "대상·변경·영향 1~2문장 + 승인". 탐색(Read/Glob/Grep)은 자유.
 - **비가역 동작은 확인 모달**(D15): 항목 삭제·모두 지우기·메모리 리셋은 반드시 확인 경유.
 - **백업은 git**: `.bak`·`복사본` 금지. 복원은 history.
-- **결정·계획은 문서로**: 대화에만 두지 말고 `.claude/rules/dev-*.md`에 반영.
+- **결정·계획은 문서로**: 대화에만 두지 말고 `rules/dev-*.md`에 반영.
 - **느슨 결합 유지**: `clipboard-store`·`scroll-remote`·`settings`는 electron 비의존(테스트 가능·전역판 분리 대비, D18/D25).
 
 ## 재발 방지 패턴 (recurring-mistakes)
