@@ -1,56 +1,69 @@
 # copy-manager
 
-Windows 11 `win+v`(클립보드 기록 창)의 불편을 해소하는 **개인용 데스크톱 클립보드 매니저**.
+Windows 11 `win+v`보다 더 많은 클립보드 기록을 한눈에 보고, 탐색 중 창이 닫히지 않도록 만든 개인용 데스크톱 클립보드 매니저입니다.
 
-## 왜 만들었나 (win+v가 막히는 곳)
+## 해결하려는 문제
 
-- 좁아서 한 번에 몇 개 안 보임 → 계속 스크롤해야 함
-- 화살표로 아래 항목 보려다 **창이 닫힘**
-- 좁은 스크롤바 조작 중 살짝 빗나가면(포커스 밖 클릭) **창이 닫힘**
+- `win+v`는 창이 좁아 한 번에 보이는 기록이 적습니다.
+- 화살표 탐색이나 스크롤바 조작 중 포커스를 잃으면 창이 닫힐 수 있습니다.
+- 마우스 휠 없이 긴 기록을 탐색하기 어렵습니다.
 
-→ **"보이는 개수가 적고, 탐색하다 창이 닫힌다"** 는 핵심 막힘을 해결한다.
+copy-manager는 넓은 카드 그리드, 유지되는 창, 키보드 탐색과 창 내부 스크롤 리모컨으로 이 불편을 줄입니다.
 
 ## 주요 기능
 
-- **카드 그리드**: 한 화면에 9개+(2~8열 설정 가능), 4:3 균일 카드
-- **표시 밀도**: 전체 UI 배율 75~150%로 한 화면에 보이는 카드 수를 조절
-- **키보드 탐색**: ←→↑↓ 그리드 이동 — **조작 중 창이 닫히지 않음**
-- **클릭=복사 / Enter·더블클릭=직전 앱에 붙여넣기** (nut.js Ctrl+V 합성)
-- **스크롤 리모컨**: 창 내부 플로팅(드웰 게이지·클릭/홀드·투명도) — 휠 없이 끝까지 탐색
-- **타입 탭**: 전체/텍스트/이미지/링크/코드
-- **핀 고정**: 핀 항목은 유지 개수 카운트 제외·영구 보존
-- **전역 핫키**: 기본 `Ctrl+Alt+V` 토글(설정 변경 가능, win+v와 공존)
-- **항상 위**: 헤더 📌 토글 상태를 기억해 단축키 재호출·앱 재시작 뒤에도 유지
-- **창 배치·복원**: 9분할 배치와 헤더 드래그 이동을 지원하며, 드래그한 실제 위치도 재실행 뒤 복원
-- **실행 식별**: 헤더·Alt+Tab 제목에 버전과 개발/패키지 실행 상태 표시
-- **보안**: 화면 캡처 방지(`setContentProtection`) · 저장 암호화(safeStorage/DPAPI)
-- **윈도우 시작 시 자동 실행**(옵트인)
+- 카드 2~8열과 전체 UI 배율 75~150%
+- `←→↑↓` 키보드 탐색, 검색, 전체/텍스트/이미지/링크/코드 필터
+- 클릭하면 복사, `Enter`·더블클릭하면 직전 앱에 붙여넣기
+- 핀 항목 영구 보존과 기본 50개 히스토리
+- 창 내부 플로팅 스크롤 리모컨(옵트인, 드웰 또는 클릭/홀드)
+- 기본 `Ctrl+Alt+V` 전역 단축키, 항상 위 토글, 선택적 자동 숨김
+- 9분할 창 배치와 드래그 위치 복원
+- 화면 캡처 방지와 `safeStorage`/Windows DPAPI 기반 히스토리 암호화
+- Windows 시작 시 자동 실행(옵트인, 패키징 앱에서만 적용)
 
-## 스택
+## 설치와 실행
 
-- Electron 42 + TypeScript 6(strict) · Vite(electron-vite 5) · vitest 4
-- 렌더러 vanilla TS · 저장 로컬 JSON(`%APPDATA%\copy-manager\`)
-- 붙여넣기 합성 `@nut-tree-fork/nut-js`
-- Windows 전용
+### 패키징 앱
 
-## 실행
+- 설치본: `release\copy-manager Setup 0.2.1.exe`
+- 무설치본: `release\win-unpacked\copy-manager.exe`
+
+코드 서명이 없어 첫 실행 시 SmartScreen 경고가 나타날 수 있습니다. 최신 공개 산출물은 [GitHub Releases](https://github.com/ai-blink/copy-manager/releases/tag/v0.2.1)에서 받을 수 있습니다.
+
+### 개발 실행
 
 ```powershell
-npm install        # 최초 1회
-npm run dev        # 개발 실행(electron-vite dev, HMR) → Ctrl+Alt+V 로 창 열기
-npm run build      # 프로덕션 번들
-npm run typecheck  # tsc --noEmit
-npm test           # vitest
-npm run dist       # electron-builder 패키징(Windows NSIS) → release\
+npm install
+npm run dev
 ```
 
-패키징 산출물: `release\copy-manager Setup <ver>.exe`(설치본) + `release\win-unpacked\copy-manager.exe`(무설치).
-코드 서명이 없어 첫 실행 시 SmartScreen 경고가 뜰 수 있습니다(개인용, "추가 정보 → 실행"으로 진행).
+앱은 숨김 상태로 시작합니다. `Ctrl+Alt+V`를 눌러 창을 엽니다.
 
-## 최신 릴리즈
+## 개발 명령
 
-- **v0.2.1** — 창 위치 복원·9분할 배치·표시 밀도 설정·실행 버전 표시. 설치 파일과 전체 변경 내역은 [GitHub Releases](https://github.com/ai-blink/copy-manager/releases/tag/v0.2.1)와 [CHANGELOG.md](CHANGELOG.md)를 참고하세요.
+```powershell
+npm run typecheck  # TypeScript strict 검사
+npm test           # Vitest 단위테스트 17개
+npm run build      # main/preload/renderer 번들
+npm run dist       # Windows NSIS 설치본과 무설치본 생성
+```
+
+## 저장 위치와 보안
+
+- 저장 위치: `%APPDATA%\copy-manager\`
+- `clip-history.json`: `safeStorage`/Windows DPAPI 암호화
+- `settings.json`: 핫키·토글 등 비민감 설정을 평문 저장
+- 화면 캡처 방지는 소프트웨어 캡처 노출을 줄이지만 RDP·일부 가상화 환경·물리 카메라까지 보장하지 않습니다.
+
+## 현재 상태와 문서
+
+- 최신 버전: `0.2.1`
+- S1~S6 코드 구현과 자동 검증 완료
+- GUI 수동 검증과 1주 실사용 평가는 진행 전/진행 중
+
+변경 내역은 [CHANGELOG.md](CHANGELOG.md), 수동 검증 절차는 [notes/MANUAL-SMOKE.md](notes/MANUAL-SMOKE.md), 현재 개발 상태는 [rules/dev-context.md](rules/dev-context.md)를 참고하세요.
 
 ## 범위 밖
 
-전역(시스템 전체) 스크롤 리모컨(별도 프로젝트) · 클라우드 동기화 · 다국어 · `win+v` 강제 가로채기 · 크로스플랫폼(mac·Linux)
+전역 시스템 스크롤 리모컨 · 클라우드 동기화 · 다국어 · `win+v` 강제 가로채기 · macOS/Linux

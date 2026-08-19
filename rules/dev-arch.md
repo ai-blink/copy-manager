@@ -1,38 +1,51 @@
-# dev-arch — copy-manager (아키텍처 · 파일 맵)
+# dev-arch — copy-manager
 
-> S1~S6 구현 완료(2026-08-10). 아래 구조는 실제 코드와 일치. 변경 시 갱신.
+> S1~S6 구현 기준의 현재 아키텍처다. 초기 제안은 `notes/brainstorm/`에 보존한다.
 
-## 프로세스 구성 (Electron)
-```
-main (Node)                      renderer (창 UI)
-├─ 창 관리                        ├─ App 셸 (검색·탭·그리드)
-│  frameless·alwaysOnTop·         ├─ ClipboardGrid (카드 4:3, 키보드 탐색)
-│  transparent, blur→hide(keepOpen=false) ├─ Card (호버 액션 📌⋯🗑️, 클릭=복사 플래시)
-├─ 전역 핫키 (창 복원·표시·활성화) ├─ ScrollRemote ★느슨결합 (드웰 게이지·드래그·투명도)
-├─ 클립보드 캡처 (폴링/후킹)      ├─ DetailModal / ConfirmModal / SettingsModal
-├─ 히스토리 스토어 (50 ring +     └─ EmptyState
-│  핀 영구, JSON/SQLite 영속)
-├─ 붙여넣기 합성 (Ctrl+V 주입)
-└─ 설정 스토어 (재부팅 리셋 옵션)
-        │  IPC (preload, contextIsolation)
-        └──────────────┘
+## 프로세스와 데이터 흐름
+
+```text
+Windows clipboard
+  → main: 800ms 캡처·분류·암호화 저장
+  → preload: 허용된 IPC만 노출
+  → renderer: 검색·필터·카드 그리드·모달·스크롤 리모컨
+  → main: 복사 또는 직전 앱 포커스 복원 + Ctrl+V 합성
 ```
 
-## 모듈 경계 (구현 — 실제 경로)
-- `src/shared/clipboard-store/` — 캡처(`capture.ts`)·ring buffer/핀/영속(`store.ts`)·타입 분류(`classify.ts`). electron 비의존(테스트 가능). 영속 암호화는 `Cipher` 포트(encrypt/decrypt) 주입으로 분리(기본 `IDENTITY_CIPHER`=평문, D29)
-- `src/shared/settings/` — `SettingsStore`(JSON 영속·누락키 보강·재부팅 리셋·`alwaysOnTop`·`launchAtStartup`·`uiScale`·`windowPlacement`·`windowPosition` D32). electron 비의존
-- `src/renderer/src/scroll-remote.ts` — **독립 컴포넌트** `mountScrollRemote({target,container})→handle`. clipboard 비의존(입력=스크롤 대상/경계, 출력=`scrollTop`), 전역판 분리 대비 느슨 결합(D18/D25)
-- `src/renderer/src/main.ts` — 그리드·타입탭·검색·키보드 탐색·카드 액션·우클릭 메뉴·상세/확인/설정 모달·설정 적용
-- `src/main/` — `window.ts`(창·`keepOpen=false`일 때 blur→hide·핫키의 창 복원/표시/활성화·직전창 focus 복원·항상 위·전체 배율·9분할/드래그 좌표 복원·화면 캡처 방지)·`hotkey.ts`(전역 핫키·재등록)·`paste.ts`(Ctrl+V 합성)·`cipher.ts`(safeStorage/DPAPI 암호화 포트 구현 D29)·`index.ts`(캡처 폴링·IPC·드래그 좌표 디바운스 저장·설정 적용·cipher 주입)
-- `src/preload/index.ts` — contextBridge `copyManager` API(history/copy/paste/pinItem/delete/clear/reset/settings)
+- main 프로세스가 창·전역 단축키·클립보드 폴링·저장·붙여넣기·설정 부수효과를 소유한다.
+- renderer는 UI 상태와 사용자 입력을 소유하며 Node API에 직접 접근하지 않는다.
+- preload는 `contextBridge`를 통해 고정된 API만 전달한다.
 
-## IPC 표면 (preload, contextIsolation)
-- 조회: `app:get-info` · `history:get` · `settings:get`
-- 동작: `clip:copy` · `clip:paste` · `item:pin` · `clip:delete` · `clip:clear` · `clip:reset` · `pin:set`(창 핀) · `settings:set`
-- 알림(main→renderer): `history:changed` · `settings:changed`
+## 모듈 경계
 
-## 보안/Electron 기본
-- contextIsolation on, nodeIntegration off, sandbox on, preload(CJS)로 최소 IPC 노출
-- 렌더러는 shared 모듈에서 `import type`만 사용 → node:fs 비번들(XSS는 textContent로 차단)
-- **화면 캡처 방지(D28)**: `setContentProtection`(기본 on)으로 스크린샷/녹화/화면공유에서 창 제외 → 클립보드 민감 내용 유출 방지. 설정 토글, RDP·물리 카메라는 미보장
-- **저장 암호화(D29)**: `clip-history.json`을 safeStorage(Windows DPAPI)로 암호화 → 파일 유출돼도 타 계정/머신 복호화 불가. `Cipher` 포트로 clipboard-store와 분리(electron 비의존 유지), 구 평문 파일 자동 마이그레이션. settings.json은 비민감이라 평문
+- `src/shared/clipboard-store/`: 캡처, 타입 분류, 기본 50개 ring buffer, 핀 영구 보존, JSON 영속. Electron 비의존이며 `Cipher` 포트를 주입받는다.
+- `src/shared/settings/`: `SettingsStore`, 누락 키 기본값 보강, 재시작 리셋. Electron 비의존이다.
+- `src/main/cipher.ts`: Electron `safeStorage`/Windows DPAPI 암호화 어댑터와 평문 마이그레이션.
+- `src/main/window.ts`: frameless 창, 표시·활성화, 자동숨김, 항상 위, 화면 캡처 방지, 배율, 9분할 배치와 드래그 좌표 복원.
+- `src/main/hotkey.ts`: 전역 단축키 등록·재등록.
+- `src/main/paste.ts`: 직전 창 포커스 복원과 순차 `Ctrl+V` 합성.
+- `src/main/index.ts`: 앱 수명주기, 800ms 캡처 폴링, IPC, 설정 부수효과, 드래그 좌표 저장.
+- `src/preload/index.ts`: renderer용 `copyManager` API.
+- `src/renderer/src/main.ts`: 검색·필터·그리드·카드 액션·모달·설정 적용.
+- `src/renderer/src/scroll-remote.ts`: 스크롤 대상만 주입받는 독립 리모컨 컴포넌트.
+
+## IPC 표면
+
+- 조회: `app:get-info`, `history:get`, `settings:get`
+- 창: `window:hide`, `window:toggle-aot`
+- 항목: `clip:copy`, `clip:paste`, `item:pin`, `clip:delete`, `clip:clear`, `clip:reset`
+- 설정: `settings:set`
+- main → renderer 알림: `history:changed`, `settings:changed`
+
+## 저장
+
+- `%APPDATA%\copy-manager\clip-history.json`: `{v:2, alg:'safeStorage', data:<base64>}` 봉투 형식. 구 평문 배열은 다음 저장 때 암호화한다.
+- `%APPDATA%\copy-manager\settings.json`: 비민감 설정을 평문 JSON으로 저장한다.
+- SQLite는 현재 구현과 계획에 포함하지 않는다.
+
+## 보안 경계
+
+- `contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`.
+- renderer는 shared 모듈을 `import type`으로만 참조하며 사용자 내용은 `textContent`로 렌더링한다.
+- `setContentProtection`은 소프트웨어 캡처 노출을 줄이지만 RDP·가상화·물리 카메라는 보장하지 않는다.
+- DPAPI는 파일 유출 방어용이며 동일 Windows 사용자 권한을 획득한 악성 코드까지 막지 못한다.

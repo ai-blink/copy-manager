@@ -1,6 +1,7 @@
 # copy-manager — UX 설계서 (브레인스토밍 결과)
 
-> 작성일 2026-06-28 · 단계: brainstorming 수렴 완료 → 승인 대기
+> 작성일 2026-06-28 · 초기 UX 수렴 결과를 보존한 역사 자료
+> 현재 구현·결정 정본: `rules/dev-arch.md` · `rules/dev-decisions.md` · `rules/dev-context.md`
 > mockup: `notes/brainstorm/04_mockup.html` (복사 시각화 + 상세 모달 + 삭제 확인 + 설정 화면, 동작본)
 > 기술스택: **Electron + TypeScript** (Windows 전용)
 
@@ -81,7 +82,9 @@
 
 ---
 
-## 부록 — 기술 메모 / 구현 슬라이스 (승인 후)
+## 부록 — 당시 기술 제안 / 구현 슬라이스
+
+> 아래 내용은 구현 전 제안이므로 현재 사실 확인에는 사용하지 않는다. 현재 구조는 `rules/dev-arch.md`, 현재 일정은 `rules/dev-roadmap.md`를 따른다.
 
 **스택**: Electron + TypeScript + Vite. 렌더러는 우선 vanilla TS(필요 시 경량 프레임워크). 저장은 로컬(JSON 또는 SQLite better-sqlite3).
 
