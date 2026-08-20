@@ -31,6 +31,14 @@ describe('SettingsStore (D17)', () => {
     expect(next.hotkey).toBe(DEFAULT_SETTINGS.hotkey) // 미변경 키 유지
   })
 
+  it('(b-2) keepCount 는 1~1000 정수 범위로 보정한다', () => {
+    const s = new SettingsStore(tmpFile())
+
+    expect(s.set({ keepCount: 0 }).keepCount).toBe(1)
+    expect(s.set({ keepCount: 1000.8 }).keepCount).toBe(1000)
+    expect(s.set({ keepCount: 2000 }).keepCount).toBe(1000)
+  })
+
   it('(c) 저장 → 재로딩 라운드트립이 동일 상태를 복원한다', async () => {
     const filePath = tmpFile()
     const a = new SettingsStore(filePath)
@@ -87,5 +95,26 @@ describe('SettingsStore (D17)', () => {
     expect(s.get().windowPosition).toBeNull() // 신규 키 누락 → 9분할 배치값을 사용
     expect(s.get().alwaysOnTop).toBe(true) // 신규 키 누락 → 기본값 true(항상 위)
     expect(s.get().contentProtection).toBe(true) // 신규 키 누락 → 기본값 true(보안 우선, D28)
+  })
+
+  it('(e-2) v1에 저장된 이전 기본값 50은 새 기본값 100으로 마이그레이션한다', async () => {
+    const filePath = tmpFile()
+    await fs.writeFile(
+      filePath,
+      JSON.stringify({ version: 1, settings: { keepCount: 50 } }),
+      'utf8'
+    )
+
+    const s = new SettingsStore(filePath)
+    await s.load()
+
+    expect(s.get().keepCount).toBe(100)
+    expect(JSON.parse(await fs.readFile(filePath, 'utf8'))).toMatchObject({ version: 2 })
+
+    s.set({ keepCount: 50 })
+    await s.save()
+    const reloaded = new SettingsStore(filePath)
+    await reloaded.load()
+    expect(reloaded.get().keepCount).toBe(50)
   })
 })

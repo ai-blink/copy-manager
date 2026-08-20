@@ -3,7 +3,7 @@ import { promises as fs } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
-import { ClipboardStore, classifyText, type Cipher } from '../src/shared/clipboard-store'
+import { ClipboardStore, captureOnce, classifyText, type Cipher } from '../src/shared/clipboard-store'
 
 // 각 테스트가 독립 임시 파일을 쓰도록 추적 후 정리.
 const tmpFiles: string[] = []
@@ -95,6 +95,19 @@ describe('classifyText 타입 분류 (D16)', () => {
     const link = store.add({ content: 'http://localhost:3000' })
     expect(link.type).toBe('link')
   })
+
+  it('(d-2) captureOnce 는 호출자가 지정한 현재 클립보드 항목을 적재하지 않는다', () => {
+    const store = newStore()
+    const reader = {
+      readText: () => 'deduplicated',
+      readImageDataUrl: () => null
+    }
+
+    const added = captureOnce(reader, store, (type, content) => type === 'text' && content === 'deduplicated')
+
+    expect(added).toBeNull()
+    expect(store.size).toBe(0)
+  })
 })
 
 describe('JSON 영속화 (S2)', () => {
@@ -171,6 +184,24 @@ describe('ClipboardStore S5 메서드 (삭제/모두지우기/유지개수)', ()
 
     expect(store.size).toBe(1)
     expect(store.getAll().some((i) => i.id === a.id)).toBe(false)
+  })
+
+  it('(i-2) removeDuplicates 는 최신 비핀만 남기고 핀 항목은 보존한다', () => {
+    const store = newStore()
+    store.add({ content: 'same', type: 'text', createdAt: 10 })
+    const latest = store.add({ content: 'same', type: 'text', createdAt: 30 })
+    store.add({ content: 'same', type: 'link', createdAt: 40 })
+    store.add({ content: 'pin-same', type: 'text', pinned: true, createdAt: 50 })
+    store.add({ content: 'pin-same', type: 'text', createdAt: 60 })
+
+    const removed = store.removeDuplicates()
+
+    expect(removed).toBe(2)
+    expect(store.getAll().some((i) => i.id === latest.id)).toBe(true)
+    expect(store.getAll().filter((i) => i.content === 'same' && i.type === 'text')).toHaveLength(1)
+    expect(store.getAll().some((i) => i.content === 'same' && i.type === 'link')).toBe(true)
+    expect(store.getAll().some((i) => i.pinned && i.content === 'pin-same')).toBe(true)
+    expect(store.getAll().some((i) => !i.pinned && i.content === 'pin-same')).toBe(false)
   })
 })
 

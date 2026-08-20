@@ -433,6 +433,9 @@
         border-radius: 16px;
         box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
       }
+      .settings-modal {
+        width: min(760px, 94vw);
+      }
       .modal-head {
         display: flex;
         align-items: center;
@@ -451,6 +454,50 @@
       }
       .modal-body {
         padding: 16px 18px;
+      }
+      .settings-layout {
+        display: grid;
+        grid-template-columns: 132px minmax(0, 1fr);
+        gap: 18px;
+      }
+      .settings-sidebar {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        align-self: start;
+        position: sticky;
+        top: 0;
+      }
+      .settings-navtab {
+        width: 100%;
+        padding: 9px 10px;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        background: transparent;
+        color: var(--muted);
+        text-align: left;
+        font: inherit;
+        font-size: 13px;
+        cursor: pointer;
+      }
+      .settings-navtab:hover {
+        background: var(--panel-2);
+        color: var(--text);
+      }
+      .settings-navtab.on {
+        border-color: var(--accent);
+        background: rgba(192, 123, 240, 0.1);
+        color: var(--accent);
+        font-weight: 650;
+      }
+      .settings-panel {
+        display: none;
+      }
+      .settings-panel.show {
+        display: block;
+      }
+      .settings-panel .set-grp:first-child {
+        margin-top: 0;
       }
       .modal-foot {
         display: flex;
@@ -544,7 +591,9 @@
         width: 100%;
         accent-color: var(--accent);
       }
-      .set-grp input[type='text'] {
+      .set-grp input[type='text'],
+      .set-grp input[type='number'],
+      .set-grp select {
         width: 100%;
         background: var(--bg);
         border: 1px solid var(--line);
@@ -552,6 +601,18 @@
         color: var(--text);
         font: inherit;
         padding: 9px 10px;
+      }
+      .hotkey-selectors {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+      }
+      .hotkey-selectors label {
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .hotkey-selectors select {
+        margin-top: 5px;
       }
       .chip {
         font-size: 12px;
@@ -646,6 +707,25 @@
       .toast.show {
         opacity: 1;
       }
+      @media (max-width: 640px) {
+        .settings-layout {
+          grid-template-columns: 1fr;
+          gap: 14px;
+        }
+        .settings-sidebar {
+          position: static;
+          flex-direction: row;
+          overflow-x: auto;
+          padding-bottom: 2px;
+        }
+        .settings-navtab {
+          width: auto;
+          flex: 0 0 auto;
+        }
+        .hotkey-selectors {
+          grid-template-columns: 1fr;
+        }
+      }
     </style>
   </head>
   <body>
@@ -654,6 +734,7 @@
       <span class="state" id="state"></span>
       <span class="hbtns">
         <span class="hbtn" id="winPinBtn" title="항상 위 토글">📌</span>
+        <span class="hbtn" id="dedupeBtn" title="중복 기록 제거(핀 유지)">♻</span>
         <span class="hbtn" id="clearBtn" title="모두 지우기(핀 제외)">🧹</span>
         <span class="hbtn" id="setBtn" title="설정">⚙</span>
         <span class="hbtn" id="closeBtn" title="닫기 (Ctrl+Alt+V 다시 눌러도 닫힘)">✕</span>
@@ -714,124 +795,124 @@
 
     <!-- S5 설정 모달 (D17) -->
     <div class="overlay" id="setOverlay">
-      <div class="modal">
+      <div class="modal settings-modal">
         <div class="modal-head"><h3>설정</h3><span class="x" data-close>✕</span></div>
         <div class="modal-body">
-          <div class="set-grp">
-            <div class="lbl">전역 단축키 (창 열기)</div>
-            <input type="text" id="setHotkey" spellcheck="false" />
-            <div class="note" style="margin-top: 6px">
-              Electron accelerator 형식. 예: <b>CommandOrControl+Alt+V</b>. win+v는 OS
-              예약이라 자체 핫키를 씁니다(충돌만 피하면 됨).
-            </div>
-          </div>
-          <div class="set-grp">
-            <label class="checkrow"
-              ><input type="checkbox" id="keepOpen" /> 창 유지 (포커스를 잃어도 닫지 않음)</label
-            >
-            <div class="note" style="margin-top: 8px">
-              체크 해제하면 다른 곳을 클릭할 때 자동으로 닫힙니다(자동숨김). 닫기는 핫키 다시
-              누르기 또는 헤더 ✕ 버튼.
-            </div>
-          </div>
-          <div class="set-grp">
-            <label class="checkrow"
-              ><input type="checkbox" id="contentProtection" /> 화면 캡처 방지 (보안)</label
-            >
-            <div class="note" style="margin-top: 8px">
-              켜면 스크린샷·화면 녹화·화면 공유(줌/팀즈/OBS 등)에 이 창이 잡히지 않습니다(검은 영역/제외).
-              클립보드 민감 내용 유출 방지용. 데모로 창을 보여줘야 할 때만 해제하세요. ※일부 원격
-              데스크톱(RDP)에서는 효과가 다를 수 있습니다.
-            </div>
-          </div>
-          <div class="set-grp">
-            <label class="checkrow"
-              ><input type="checkbox" id="launchAtStartup" /> 윈도우 시작 시 자동 실행</label
-            >
-            <div class="note" style="margin-top: 8px">
-              켜면 Windows 로그인 시 이 앱이 자동으로 실행됩니다(백그라운드 대기, 핫키로 창 열기).
-              ※빌드(패키징)된 앱에서만 적용됩니다. 개발 실행(npm run dev)에서는 반영되지 않습니다.
-            </div>
-          </div>
-          <div class="set-grp">
-            <div class="lbl">한 줄 카드 수 <span class="v" id="setColsV">3</span></div>
-            <div class="row" id="setColsRow">
-              <span class="chip" data-cols="2">2</span><span class="chip" data-cols="3">3</span>
-              <span class="chip" data-cols="4">4</span><span class="chip" data-cols="5">5</span>
-              <span class="chip" data-cols="6">6</span><span class="chip" data-cols="7">7</span>
-              <span class="chip" data-cols="8">8</span>
-            </div>
-          </div>
-          <div class="set-grp">
-            <div class="lbl">전체 UI 배율 <span class="v" id="setUiScaleV">100%</span></div>
-            <input type="range" id="setUiScale" min="75" max="150" step="5" value="100" />
-            <div class="note" style="margin-top: 6px">
-              창 크기는 그대로 두고 앱 전체를 75~150%로 확대·축소합니다. 작게 하면 한 화면에 더 많은
-              카드를 볼 수 있습니다.
-            </div>
-          </div>
-          <div class="set-grp">
-            <div class="lbl">창 배치</div>
-            <div class="placement-grid" id="setPlacementGrid">
-              <span class="chip" data-placement="top-left">↖ 좌상</span>
-              <span class="chip" data-placement="top">↑ 상단</span>
-              <span class="chip" data-placement="top-right">↗ 우상</span>
-              <span class="chip" data-placement="left">← 좌</span>
-              <span class="chip" data-placement="center">• 중앙</span>
-              <span class="chip" data-placement="right">→ 우</span>
-              <span class="chip" data-placement="bottom-left">↙ 좌하</span>
-              <span class="chip" data-placement="bottom">↓ 하단</span>
-              <span class="chip" data-placement="bottom-right">↘ 우하</span>
-            </div>
-            <div class="note" style="margin-top: 6px">
-              현재 창이 있는 모니터의 작업 영역(작업표시줄 제외) 안에서 즉시 이동합니다.
-            </div>
-          </div>
-          <div class="set-grp">
-            <div class="lbl">히스토리 유지 개수 <span class="v" id="setKeepV">50</span></div>
-            <input type="range" id="setKeep" min="10" max="300" step="10" value="50" />
-            <div class="note" style="margin-top: 6px">핀 항목은 카운트 제외(영구 보존).</div>
-          </div>
-          <div class="set-grp">
-            <label class="checkrow"
-              ><input type="checkbox" id="remoteEnabled" /> 스크롤 리모컨 사용</label
-            >
-            <div class="note" style="margin-top: 8px">
-              끄면 창 안의 ▲▼ 스크롤 리모컨이 사라집니다(기본 꺼짐). 마우스 휠·키보드(↑↓) 탐색은
-              그대로 동작합니다. 아래 리모컨 세부 설정은 켜야 적용됩니다.
-            </div>
-          </div>
-          <div class="set-grp">
-            <div class="lbl">리모컨 평소 투명도 <span class="v" id="setOpV">65%</span></div>
-            <input type="range" id="setOp" min="20" max="100" step="5" value="65" />
-            <div class="lbl" style="margin-top: 12px">
-              드웰 임계 시간 <span class="v" id="setDwellV">700ms</span>
-            </div>
-            <input type="range" id="setDwell" min="200" max="2000" step="100" value="700" />
-            <div class="lbl" style="margin-top: 12px">
-              스크롤 속도 <span class="v" id="setSpeedV">6</span>
-            </div>
-            <input type="range" id="setSpeed" min="1" max="20" step="1" value="6" />
-            <div class="lbl" style="margin-top: 12px">활성화 방식</div>
-            <div class="row" id="setModeRow">
-              <span class="chip" data-mode="dwell">드웰</span
-              ><span class="chip" data-mode="click">클릭/홀드</span>
-            </div>
-          </div>
-          <div class="set-grp">
-            <label class="checkrow"
-              ><input type="checkbox" id="rebootReset" /> 재부팅(앱 재시작) 시 설정을 기본값으로
-              리셋</label
-            >
-            <div class="note" style="margin-top: 8px">
-              체크하면 실험적으로 값을 바꿔도 다시 켤 때 기본값으로 돌아옵니다.
-            </div>
-          </div>
-          <div class="set-grp">
-            <div class="lbl">메모리</div>
-            <button class="btn danger" id="memReset">🧹 메모리 리셋 (모든 기록 삭제)</button>
-            <div class="note" style="margin-top: 8px">
-              클립보드 히스토리를 전부 비웁니다(핀 포함). 되돌릴 수 없음.
+          <div class="settings-layout">
+            <nav class="settings-sidebar" aria-label="설정 분류">
+              <button class="settings-navtab on" type="button" data-settings-tab="general" aria-selected="true">일반</button>
+              <button class="settings-navtab" type="button" data-settings-tab="display" aria-selected="false">창·표시</button>
+              <button class="settings-navtab" type="button" data-settings-tab="history" aria-selected="false">히스토리</button>
+              <button class="settings-navtab" type="button" data-settings-tab="remote" aria-selected="false">리모컨</button>
+              <button class="settings-navtab" type="button" data-settings-tab="security" aria-selected="false">보안</button>
+            </nav>
+            <div class="settings-content">
+              <section class="settings-panel show" data-settings-panel="general">
+                <div class="set-grp">
+                  <div class="lbl">전역 단축키 (창 열기)</div>
+                  <div class="hotkey-selectors">
+                    <label>첫 보조키
+                      <select id="setHotkeyMod1">
+                        <option value="CommandOrControl">Ctrl</option>
+                        <option value="Alt">Alt</option>
+                        <option value="Shift">Shift</option>
+                      </select>
+                    </label>
+                    <label>두 번째 보조키
+                      <select id="setHotkeyMod2">
+                        <option value="">없음</option>
+                        <option value="CommandOrControl">Ctrl</option>
+                        <option value="Alt" selected>Alt</option>
+                        <option value="Shift">Shift</option>
+                      </select>
+                    </label>
+                    <label>실행 키
+                      <select id="setHotkeyKey">
+                        <option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="D">D</option><option value="E">E</option><option value="F">F</option><option value="G">G</option><option value="H">H</option><option value="I">I</option><option value="J">J</option><option value="K">K</option><option value="L">L</option><option value="M">M</option><option value="N">N</option><option value="O">O</option><option value="P">P</option><option value="Q">Q</option><option value="R">R</option><option value="S">S</option><option value="T">T</option><option value="U">U</option><option value="V" selected>V</option><option value="W">W</option><option value="X">X</option><option value="Y">Y</option><option value="Z">Z</option>
+                        <option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option>
+                        <option value="F1">F1</option><option value="F2">F2</option><option value="F3">F3</option><option value="F4">F4</option><option value="F5">F5</option><option value="F6">F6</option><option value="F7">F7</option><option value="F8">F8</option><option value="F9">F9</option><option value="F10">F10</option><option value="F11">F11</option><option value="F12">F12</option>
+                      </select>
+                    </label>
+                  </div>
+                  <div class="note" style="margin-top: 6px">
+                    선택한 단축키: <b id="setHotkeyPreview">Ctrl + Alt + V</b>. win+v는 OS 예약이라 자체 핫키를 씁니다.
+                  </div>
+                </div>
+                <div class="set-grp">
+                  <label class="checkrow"><input type="checkbox" id="keepOpen" /> 창 유지 (포커스를 잃어도 닫지 않음)</label>
+                  <div class="note" style="margin-top: 8px">체크 해제하면 다른 곳을 클릭할 때 자동으로 닫힙니다(자동숨김). 닫기는 헤더 ✕ 버튼으로 합니다.</div>
+                </div>
+                <div class="set-grp">
+                  <label class="checkrow"><input type="checkbox" id="launchAtStartup" /> 윈도우 시작 시 자동 실행</label>
+                  <div class="note" style="margin-top: 8px">켜면 Windows 로그인 시 이 앱이 자동으로 실행됩니다. 패키징된 앱에서만 적용됩니다.</div>
+                </div>
+                <div class="set-grp">
+                  <label class="checkrow"><input type="checkbox" id="rebootReset" /> 재부팅(앱 재시작) 시 설정을 기본값으로 리셋</label>
+                  <div class="note" style="margin-top: 8px">체크하면 실험적으로 바꾼 값도 다음 실행 때 기본값으로 돌아옵니다.</div>
+                </div>
+              </section>
+              <section class="settings-panel" data-settings-panel="display">
+                <div class="set-grp">
+                  <div class="lbl">한 줄 카드 수 <span class="v" id="setColsV">3</span></div>
+                  <div class="row" id="setColsRow">
+                    <span class="chip" data-cols="2">2</span><span class="chip" data-cols="3">3</span><span class="chip" data-cols="4">4</span><span class="chip" data-cols="5">5</span><span class="chip" data-cols="6">6</span><span class="chip" data-cols="7">7</span><span class="chip" data-cols="8">8</span>
+                  </div>
+                </div>
+                <div class="set-grp">
+                  <div class="lbl">전체 UI 배율 <span class="v" id="setUiScaleV">100%</span></div>
+                  <input type="range" id="setUiScale" min="75" max="150" step="5" value="100" />
+                  <div class="note" style="margin-top: 6px">창 크기는 그대로 두고 앱 전체를 75~150%로 확대·축소합니다.</div>
+                </div>
+                <div class="set-grp">
+                  <div class="lbl">창 배치</div>
+                  <div class="placement-grid" id="setPlacementGrid">
+                    <span class="chip" data-placement="top-left">↖ 좌상</span><span class="chip" data-placement="top">↑ 상단</span><span class="chip" data-placement="top-right">↗ 우상</span><span class="chip" data-placement="left">← 좌</span><span class="chip" data-placement="center">• 중앙</span><span class="chip" data-placement="right">→ 우</span><span class="chip" data-placement="bottom-left">↙ 좌하</span><span class="chip" data-placement="bottom">↓ 하단</span><span class="chip" data-placement="bottom-right">↘ 우하</span>
+                  </div>
+                  <div class="note" style="margin-top: 6px">현재 창이 있는 모니터의 작업 영역 안에서 즉시 이동합니다.</div>
+                </div>
+              </section>
+              <section class="settings-panel" data-settings-panel="history">
+                <div class="set-grp">
+                  <div class="lbl">히스토리 유지 개수</div>
+                  <input type="number" id="setKeep" min="1" max="1000" step="1" value="100" inputmode="numeric" />
+                  <div class="row" id="setKeepPresets" style="margin-top: 8px">
+                    <span class="chip" data-keep="50">50</span><span class="chip" data-keep="100">100</span><span class="chip" data-keep="200">200</span><span class="chip" data-keep="500">500</span><span class="chip" data-keep="1000">1000</span>
+                  </div>
+                  <div class="note" style="margin-top: 6px">1~1000개를 직접 입력하거나 빠른 값을 선택하세요. 핀 항목은 카운트에서 제외되고, 개수를 줄이면 가장 오래된 비핀 기록부터 정리됩니다.</div>
+                </div>
+                <div class="set-grp">
+                  <div class="lbl">중복 기록</div>
+                  <button class="btn" id="settingsDedupeBtn">♻ 중복 기록 제거</button>
+                  <div class="note" style="margin-top: 8px">같은 내용·유형의 비핀 기록은 최신 1개만 남기고 정리합니다. 핀 기록은 유지됩니다.</div>
+                </div>
+                <div class="set-grp">
+                  <div class="lbl">메모리</div>
+                  <button class="btn danger" id="memReset">🧹 메모리 리셋 (모든 기록 삭제)</button>
+                  <div class="note" style="margin-top: 8px">클립보드 히스토리를 전부 비웁니다(핀 포함). 되돌릴 수 없습니다.</div>
+                </div>
+              </section>
+              <section class="settings-panel" data-settings-panel="remote">
+                <div class="set-grp">
+                  <label class="checkrow"><input type="checkbox" id="remoteEnabled" /> 스크롤 리모컨 사용</label>
+                  <div class="note" style="margin-top: 8px">끄면 창 안의 ▲▼ 스크롤 리모컨이 사라집니다. 마우스 휠·키보드 탐색은 그대로 동작합니다.</div>
+                </div>
+                <div class="set-grp">
+                  <div class="lbl">리모컨 평소 투명도 <span class="v" id="setOpV">65%</span></div>
+                  <input type="range" id="setOp" min="20" max="100" step="5" value="65" />
+                  <div class="lbl" style="margin-top: 12px">드웰 임계 시간 <span class="v" id="setDwellV">700ms</span></div>
+                  <input type="range" id="setDwell" min="200" max="2000" step="100" value="700" />
+                  <div class="lbl" style="margin-top: 12px">스크롤 속도 <span class="v" id="setSpeedV">6</span></div>
+                  <input type="range" id="setSpeed" min="1" max="20" step="1" value="6" />
+                  <div class="lbl" style="margin-top: 12px">활성화 방식</div>
+                  <div class="row" id="setModeRow"><span class="chip" data-mode="dwell">드웰</span><span class="chip" data-mode="click">클릭/홀드</span></div>
+                </div>
+              </section>
+              <section class="settings-panel" data-settings-panel="security">
+                <div class="set-grp">
+                  <label class="checkrow"><input type="checkbox" id="contentProtection" /> 화면 캡처 방지 (보안)</label>
+                  <div class="note" style="margin-top: 8px">켜면 스크린샷·화면 녹화·화면 공유에 이 창이 잡히지 않습니다. 데모로 창을 보여줘야 할 때만 해제하세요. 일부 원격 데스크톱(RDP)에서는 효과가 다를 수 있습니다.</div>
+                </div>
+              </section>
             </div>
           </div>
         </div>
@@ -850,6 +931,17 @@
           <button class="btn" id="confirmNo">취소</button>
           <button class="btn danger" id="confirmYes">삭제</button>
         </div>
+      </div>
+    </div>
+
+    <!-- 단축키 선점 등 되돌릴 필요가 없는 알림 모달 -->
+    <div class="overlay" id="noticeOverlay">
+      <div class="modal" style="width: min(380px, 90vw)">
+        <div class="modal-head"><h3 id="noticeTitle">알림</h3></div>
+        <div class="modal-body">
+          <div id="noticeMsg" style="font-size: 14px; line-height: 1.6"></div>
+        </div>
+        <div class="modal-foot"><button class="btn primary" id="noticeOk">확인</button></div>
       </div>
     </div>
 

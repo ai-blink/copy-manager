@@ -20,6 +20,7 @@ let items: ClipItem[] = [] // 최신이 앞(store 는 [old...new] 라 reverse)
 let tab = '전체'
 let filter = ''
 let sel = 0
+let keepCount = 100
 
 function $<T extends HTMLElement>(id: string): T {
   const el = document.getElementById(id)
@@ -172,7 +173,8 @@ function render(): void {
     emptyMsgEl.textContent =
       filter || tab !== '전체' ? '조건에 맞는 항목이 없어요' : '클립보드가 비어 있어요'
   }
-  countHintEl.textContent = `${vis.length}개`
+  countHintEl.textContent = `${vis.length} / ${keepCount}개`
+  countHintEl.title = '현재 검색 결과 / 최대 보유 개수'
   stateEl.textContent = `총 ${items.length}개`
 
   document.querySelectorAll<HTMLElement>('#tabs .tab').forEach((t) => {
@@ -266,7 +268,7 @@ window.copyManager.onHistoryChanged(() => {
 const remote = mountScrollRemote({
   target: listEl,
   container: bodyAreaEl,
-  onSettings: () => openOverlay('setOverlay')
+  onSettings: () => openSettings()
 })
 
 // ===== S5: 모달 · 우클릭 메뉴 · 카드 액션 · 설정 =====
@@ -277,6 +279,34 @@ function openOverlay(id: string): void {
 function closeOverlay(el: HTMLElement): void {
   el.classList.remove('show')
 }
+function showNotice(title: string, msg: string): void {
+  $('noticeTitle').textContent = title
+  $('noticeMsg').textContent = msg
+  openOverlay('noticeOverlay')
+}
+type SettingsTab = 'general' | 'display' | 'history' | 'remote' | 'security'
+let activeSettingsTab: SettingsTab = 'general'
+function showSettingsTab(tab: SettingsTab): void {
+  activeSettingsTab = tab
+  document.querySelectorAll<HTMLButtonElement>('[data-settings-tab]').forEach((button) => {
+    const active = button.dataset['settingsTab'] === tab
+    button.classList.toggle('on', active)
+    button.setAttribute('aria-selected', String(active))
+  })
+  document.querySelectorAll<HTMLElement>('[data-settings-panel]').forEach((panel) => {
+    panel.classList.toggle('show', panel.dataset['settingsPanel'] === tab)
+  })
+}
+function openSettings(): void {
+  showSettingsTab(activeSettingsTab)
+  openOverlay('setOverlay')
+}
+document.querySelectorAll<HTMLButtonElement>('[data-settings-tab]').forEach((button) => {
+  button.addEventListener('click', () => {
+    const tab = button.dataset['settingsTab'] as SettingsTab | undefined
+    if (tab) showSettingsTab(tab)
+  })
+})
 // 배경 클릭 / [data-close] 로 모달 닫기
 document.querySelectorAll<HTMLElement>('.overlay').forEach((ov) => {
   ov.addEventListener('click', (e) => {
@@ -381,8 +411,51 @@ ctxEl.querySelectorAll<HTMLElement>('.mi').forEach((mi) => {
 })
 
 // 설정 (D17) — 설정 모달이 단일 소스. 변경 시 patchSettings → main 영속 → applySettings.
+const hotkeyMod1El = $<HTMLSelectElement>('setHotkeyMod1')
+const hotkeyMod2El = $<HTMLSelectElement>('setHotkeyMod2')
+const hotkeyKeyEl = $<HTMLSelectElement>('setHotkeyKey')
+const HOTKEY_MODIFIERS = new Set(['CommandOrControl', 'Alt', 'Shift'])
+
+function hasOption(select: HTMLSelectElement, value: string): boolean {
+  return [...select.options].some((option) => option.value === value)
+}
+
+function normalizeHotkeyModifier(value: string): string {
+  return value === 'Control' || value === 'Ctrl' ? 'CommandOrControl' : value
+}
+
+function syncHotkeyControls(hotkey: string): void {
+  const parts = hotkey.split('+')
+  const modifiers = parts.slice(0, -1).map(normalizeHotkeyModifier).filter((part) => HOTKEY_MODIFIERS.has(part))
+  const key = parts.at(-1) ?? ''
+  const first = modifiers[0]
+  const second = modifiers[1] ?? ''
+  if (first && hasOption(hotkeyMod1El, first)) hotkeyMod1El.value = first
+  if (hasOption(hotkeyMod2El, second) && second !== hotkeyMod1El.value) hotkeyMod2El.value = second
+  if (hasOption(hotkeyKeyEl, key)) hotkeyKeyEl.value = key
+  $('setHotkeyPreview').textContent = hotkey
+    .split('+')
+    .map((part) => (part === 'CommandOrControl' ? 'Ctrl' : part))
+    .join(' + ')
+}
+
+async function commitHotkey(): Promise<void> {
+  if (hotkeyMod1El.value === hotkeyMod2El.value) hotkeyMod2El.value = ''
+  const hotkey = [hotkeyMod1El.value, hotkeyMod2El.value, hotkeyKeyEl.value]
+    .filter(Boolean)
+    .join('+')
+  const result = await window.copyManager.setHotkey(hotkey)
+  applySettings(result.settings)
+  if (!result.ok) {
+    showNotice(
+      '단축키를 사용할 수 없음',
+      '이 단축키는 Windows 또는 다른 앱에서 이미 사용 중입니다. 기존 단축키는 그대로 유지됩니다.'
+    )
+  }
+}
+
 function syncSettingsControls(s: AppSettings): void {
-  $<HTMLInputElement>('setHotkey').value = s.hotkey
+  syncHotkeyControls(s.hotkey)
   $('setColsV').textContent = String(s.cols)
   document
     .querySelectorAll<HTMLElement>('#setColsRow .chip')
@@ -394,7 +467,9 @@ function syncSettingsControls(s: AppSettings): void {
     .querySelectorAll<HTMLElement>('#setPlacementGrid .chip')
     .forEach((c) => c.classList.toggle('on', c.dataset['placement'] === s.windowPlacement))
   $<HTMLInputElement>('setKeep').value = String(s.keepCount)
-  $('setKeepV').textContent = String(s.keepCount)
+  document
+    .querySelectorAll<HTMLElement>('#setKeepPresets .chip')
+    .forEach((c) => c.classList.toggle('on', Number(c.dataset['keep']) === s.keepCount))
   const opPct = Math.round(s.remoteOpacity * 100)
   $<HTMLInputElement>('setOp').value = String(opPct)
   $('setOpV').textContent = `${opPct}%`
@@ -414,6 +489,7 @@ function syncSettingsControls(s: AppSettings): void {
 
 function applySettings(s: AppSettings): void {
   cols = s.cols
+  keepCount = s.keepCount
   setAotBtn(s.alwaysOnTop)
   document.documentElement.style.setProperty('--cols', String(s.cols))
   remote.setOpacity(s.remoteOpacity)
@@ -422,6 +498,7 @@ function applySettings(s: AppSettings): void {
   remote.setMode(s.remoteMode)
   remote.setVisible(s.remoteEnabled)
   syncSettingsControls(s)
+  render()
   updateRowH()
 }
 
@@ -454,12 +531,28 @@ document.querySelectorAll<HTMLElement>('#setModeRow .chip').forEach((c) =>
   })
 )
 
-// 슬라이더: input=라이브 미리보기/라벨, change=영속
+// 유지 개수: 직접 입력은 change/Enter, 빠른 값은 클릭 즉시 영속.
 const setKeepEl = $<HTMLInputElement>('setKeep')
-setKeepEl.addEventListener('input', () => {
-  $('setKeepV').textContent = setKeepEl.value
+function commitKeepCount(): void {
+  if (!Number.isFinite(setKeepEl.valueAsNumber)) {
+    void initSettings()
+    return
+  }
+  void patchSettings({ keepCount: setKeepEl.valueAsNumber })
+}
+setKeepEl.addEventListener('change', commitKeepCount)
+setKeepEl.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault()
+    commitKeepCount()
+  }
 })
-setKeepEl.addEventListener('change', () => void patchSettings({ keepCount: Number(setKeepEl.value) }))
+document.querySelectorAll<HTMLElement>('#setKeepPresets .chip').forEach((c) => {
+  c.addEventListener('click', () => {
+    const keepCount = Number(c.dataset['keep'])
+    if (Number.isInteger(keepCount)) void patchSettings({ keepCount })
+  })
+})
 
 const setUiScaleEl = $<HTMLInputElement>('setUiScale')
 setUiScaleEl.addEventListener('input', () => {
@@ -494,11 +587,9 @@ setSpeedEl.addEventListener('change', () =>
   void patchSettings({ scrollSpeed: Number(setSpeedEl.value) })
 )
 
-const setHotkeyEl = $<HTMLInputElement>('setHotkey')
-setHotkeyEl.addEventListener('change', () => {
-  const v = setHotkeyEl.value.trim()
-  if (v) void patchSettings({ hotkey: v })
-})
+hotkeyMod1El.addEventListener('change', () => void commitHotkey())
+hotkeyMod2El.addEventListener('change', () => void commitHotkey())
+hotkeyKeyEl.addEventListener('change', () => void commitHotkey())
 
 $<HTMLInputElement>('rebootReset').addEventListener('change', (e) => {
   void patchSettings({ rebootReset: (e.target as HTMLInputElement).checked })
@@ -512,14 +603,29 @@ $('memReset').addEventListener('click', () => {
     () => void window.copyManager.resetMemory()
   )
 })
+$('noticeOk').addEventListener('click', () => closeOverlay($('noticeOverlay')))
 
 // 헤더 버튼
-$('setBtn').addEventListener('click', () => openOverlay('setOverlay'))
+$('setBtn').addEventListener('click', openSettings)
 $('clearBtn').addEventListener('click', () => {
   askConfirm('모두 지우기', '핀을 제외한 모든 기록을 지울까요?', '모두 지우기', () =>
     void window.copyManager.clearUnpinned()
   )
 })
+function askRemoveDuplicates(): void {
+  askConfirm(
+    '중복 기록 제거',
+    '같은 내용·유형의 비핀 기록은 최신 1개만 남기고 지울까요? 핀 기록은 유지됩니다.',
+    '중복 제거',
+    () => {
+      void window.copyManager.removeDuplicates().then((removed) => {
+        stateEl.textContent = removed > 0 ? `중복 ${removed}개 제거됨` : '중복 기록 없음'
+      })
+    }
+  )
+}
+$('dedupeBtn').addEventListener('click', askRemoveDuplicates)
+$('settingsDedupeBtn').addEventListener('click', askRemoveDuplicates)
 // ✕ 닫기 — 창 숨김(핫키 재누름과 동일 효과). D5 갱신
 $('closeBtn').addEventListener('click', () => window.copyManager.hideWindow())
 // 📌 항상 위(alwaysOnTop) 토글. 창 유지(keepOpen)와 별개 — 항상위만 on/off.

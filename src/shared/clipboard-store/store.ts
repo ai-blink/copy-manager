@@ -23,13 +23,13 @@ export const IDENTITY_CIPHER: Cipher = {
 export interface ClipboardStoreOptions {
   /** JSON 영속화 파일 경로 */
   filePath: string
-  /** 비핀 항목 최대 보유 수 (기본 50, D7) */
+  /** 비핀 항목 최대 보유 수 (기본 100, D7) */
   maxSize?: number
   /** 영속 암호화 포트(D29). 미지정 시 평문(IDENTITY_CIPHER). */
   cipher?: Cipher
 }
 
-const DEFAULT_MAX = 50
+const DEFAULT_MAX = 100
 
 /**
  * 클립보드 히스토리 스토어 (느슨 결합 — electron 무관).
@@ -107,6 +107,45 @@ export class ClipboardStore {
   /** 핀을 제외한 모든 항목 삭제 — "모두 지우기"(D15). 핀은 보존. */
   clearUnpinned(): void {
     this.items = this.items.filter((i) => i.pinned)
+  }
+
+  /**
+   * 비핀 중 같은 타입·내용의 중복을 최신 항목 하나만 남기고 제거한다.
+   * 핀 항목은 영구 보존 규칙(D7)에 따라 건드리지 않으며, 같은 내용의 비핀도 제거한다.
+   */
+  removeDuplicates(): number {
+    const seenByType = new Map<ClipItem['type'], Set<string>>()
+    const seenContents = (type: ClipItem['type']): Set<string> => {
+      let contents = seenByType.get(type)
+      if (!contents) {
+        contents = new Set<string>()
+        seenByType.set(type, contents)
+      }
+      return contents
+    }
+
+    // 핀은 항상 보존한다. 같은 내용의 비핀은 핀보다 새로워도 중복으로 정리한다.
+    this.items.filter((item) => item.pinned).forEach((item) => seenContents(item.type).add(item.content))
+
+    const keptIds = new Set<string>()
+    let removed = 0
+    for (let index = this.items.length - 1; index >= 0; index--) {
+      const item = this.items[index]
+      if (!item) continue
+      if (item.pinned) {
+        keptIds.add(item.id)
+        continue
+      }
+      const contents = seenContents(item.type)
+      if (contents.has(item.content)) {
+        removed++
+        continue
+      }
+      contents.add(item.content)
+      keptIds.add(item.id)
+    }
+    this.items = this.items.filter((item) => keptIds.has(item.id))
+    return removed
   }
 
   /** 비핀 유지 개수(maxSize) 변경 — 설정 모달(D17). 즉시 ring buffer 규칙 재적용. */

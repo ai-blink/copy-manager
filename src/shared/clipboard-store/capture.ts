@@ -1,5 +1,6 @@
 import type { ClipItem } from './types'
 import type { ClipboardStore } from './store'
+import { classifyText } from './classify'
 
 /**
  * 클립보드 읽기 추상화 — electron 의 clipboard 를 직접 의존하지 않기 위한 포트.
@@ -17,9 +18,14 @@ export interface ClipboardReader {
  * - 직전 항목과 동일 내용이면 중복 적재하지 않음(폴링 노이즈 방지)
  * - 새로 적재했으면 ClipItem 반환, 아니면 null
  */
-export function captureOnce(reader: ClipboardReader, store: ClipboardStore): ClipItem | null {
+export function captureOnce(
+  reader: ClipboardReader,
+  store: ClipboardStore,
+  shouldSkipCapture?: (type: ClipItem['type'], content: string) => boolean
+): ClipItem | null {
   const image = reader.readImageDataUrl()
   if (image) {
+    if (shouldSkipCapture?.('image', image)) return null
     const last = store.latest()
     if (last && last.type === 'image' && last.content === image) return null
     return store.add({ type: 'image', content: image })
@@ -27,9 +33,11 @@ export function captureOnce(reader: ClipboardReader, store: ClipboardStore): Cli
 
   const text = reader.readText()
   if (text.trim().length > 0) {
+    const type = classifyText(text)
+    if (shouldSkipCapture?.(type, text)) return null
     const last = store.latest()
     if (last && last.content === text) return null
-    return store.add({ content: text }) // type 은 classifyText 가 자동 결정
+    return store.add({ type, content: text })
   }
 
   return null

@@ -12,29 +12,29 @@ Windows clipboard
   → main: 복사 또는 직전 앱 포커스 복원 + Ctrl+V 합성
 ```
 
-- main 프로세스가 창·전역 단축키·클립보드 폴링·저장·붙여넣기·설정 부수효과를 소유한다.
+- main 프로세스가 창·전역 단축키·클립보드 폴링·저장·붙여넣기·설정 부수효과를 소유한다. 중복 제거 직후에는 현재 OS 클립보드가 폴링으로 즉시 재적재되지 않도록, 클립보드 내용이 바뀔 때까지 해당 값만 캡처하지 않는다.
 - renderer는 UI 상태와 사용자 입력을 소유하며 Node API에 직접 접근하지 않는다.
 - preload는 `contextBridge`를 통해 고정된 API만 전달한다.
 
 ## 모듈 경계
 
-- `src/shared/clipboard-store/`: 캡처, 타입 분류, 기본 50개 ring buffer, 핀 영구 보존, JSON 영속. Electron 비의존이며 `Cipher` 포트를 주입받는다.
+- `src/shared/clipboard-store/`: 캡처, 타입 분류, 기본 100개 ring buffer(1~1000 설정), 핀 영구 보존, 중복 정리, JSON 영속. Electron 비의존이며 `Cipher` 포트를 주입받는다.
 - `src/shared/settings/`: `SettingsStore`, 누락 키 기본값 보강, 재시작 리셋. Electron 비의존이다.
 - `src/main/cipher.ts`: Electron `safeStorage`/Windows DPAPI 암호화 어댑터와 평문 마이그레이션.
 - `src/main/window.ts`: frameless 창, 표시·활성화, 자동숨김, 항상 위, 화면 캡처 방지, 배율, 9분할 배치와 드래그 좌표 복원.
-- `src/main/hotkey.ts`: 전역 단축키 등록·재등록.
+- `src/main/hotkey.ts`: 전역 단축키 등록·교체. 새 키 등록에 실패하면 이전 키를 해제하지 않는다.
 - `src/main/paste.ts`: 직전 창 포커스 복원과 순차 `Ctrl+V` 합성.
 - `src/main/index.ts`: 앱 수명주기, 800ms 캡처 폴링, IPC, 설정 부수효과, 드래그 좌표 저장.
 - `src/preload/index.ts`: renderer용 `copyManager` API.
-- `src/renderer/src/main.ts`: 검색·필터·그리드·카드 액션·모달·설정 적용.
+- `src/renderer/src/main.ts`: 검색·필터·그리드·카드 액션·모달·검색 결과/최대 보유 수 표기·왼쪽 사이드바 설정 탭·세 콤보박스 단축키 조합과 단축키 충돌 알림을 소유한다.
 - `src/renderer/src/scroll-remote.ts`: 스크롤 대상만 주입받는 독립 리모컨 컴포넌트.
 
 ## IPC 표면
 
 - 조회: `app:get-info`, `history:get`, `settings:get`
 - 창: `window:hide`, `window:toggle-aot`
-- 항목: `clip:copy`, `clip:paste`, `item:pin`, `clip:delete`, `clip:clear`, `clip:reset`
-- 설정: `settings:set`
+- 항목: `clip:copy`, `clip:paste`, `item:pin`, `clip:delete`, `clip:clear`, `clip:deduplicate`, `clip:reset`
+- 설정: `settings:set`, `hotkey:set`(새 키 등록 성공 시에만 저장)
 - main → renderer 알림: `history:changed`, `settings:changed`
 
 ## 저장

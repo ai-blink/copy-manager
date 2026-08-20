@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import {
   ClipboardStore,
   captureOnce,
+  classifyText,
   type ClipboardReader,
   type ClipItem
 } from '../shared/clipboard-store'
@@ -26,7 +27,7 @@ import {
   toggleAlwaysOnTop,
   restoreLastActiveWindow
 } from './window'
-import { registerHotkey, unregisterHotkey, reRegisterHotkey } from './hotkey'
+import { registerHotkey, unregisterHotkey, replaceHotkey } from './hotkey'
 import { sendCtrlV } from './paste'
 import { createSafeStorageCipher } from './cipher'
 
@@ -51,6 +52,7 @@ let store: ClipboardStore | null = null
 let settings: SettingsStore | null = null
 let pollTimer: ReturnType<typeof setInterval> | null = null
 let windowPositionTimer: ReturnType<typeof setTimeout> | null = null
+let suppressedCapture: Pick<ClipItem, 'type' | 'content'> | null = null
 
 function getAppInfo(): { version: string; mode: string } {
   return {
@@ -118,13 +120,8 @@ function applyLaunchAtStartup(enabled: boolean): void {
   app.setLoginItemSettings({ openAtLogin: enabled })
 }
 
-/** 설정 변경의 main 측 부수효과 적용: 핫키 재등록 · 유지 개수 변경. */
+/** 설정 변경의 main 측 부수효과 적용: 유지 개수·창 동작 등. 핫키는 전용 IPC에서 원자적으로 처리한다. */
 function applySettingsSideEffects(prev: AppSettings, next: AppSettings, s: ClipboardStore): void {
-  if (next.hotkey !== prev.hotkey) {
-    if (!reRegisterHotkey(next.hotkey)) {
-      console.warn('[copy-manager] 새 핫키 등록 실패(선점 가능):', next.hotkey)
-    }
-  }
   if (next.keepCount !== prev.keepCount) {
     s.setMaxSize(next.keepCount)
   }
@@ -156,12 +153,28 @@ function loadRenderer(win: BrowserWindow): void {
 
 function startCapturePolling(s: ClipboardStore): void {
   pollTimer = setInterval(() => {
-    const added = captureOnce(electronReader, s)
+    const added = captureOnce(electronReader, s, (type, content) => {
+      if (!suppressedCapture) return false
+      if (suppressedCapture.type === type && suppressedCapture.content === content) return true
+      suppressedCapture = null
+      return false
+    })
     if (added) {
       void s.save()
       notifyRenderer() // S3: 새 항목 적재 시 렌더러 그리드 갱신
     }
   }, POLL_INTERVAL_MS)
+}
+
+/** 중복 제거 직후 현재 OS 클립보드가 폴링으로 즉시 다시 적재되지 않도록 억제한다. */
+function suppressCurrentClipboardCapture(): void {
+  const image = electronReader.readImageDataUrl()
+  if (image) {
+    suppressedCapture = { type: 'image', content: image }
+    return
+  }
+  const text = electronReader.readText()
+  suppressedCapture = text.trim().length > 0 ? { type: classifyText(text), content: text } : null
 }
 
 /** id 항목을 OS 클립보드에 쓴다(텍스트/링크/코드=텍스트, 이미지=dataURL). */
@@ -240,6 +253,16 @@ function registerIpc(s: ClipboardStore): void {
     return true
   })
 
+  // 같은 타입·내용의 비핀 중복을 최신 1개만 남긴다. 핀 항목은 D7 규칙대로 보존.
+  ipcMain.handle('clip:deduplicate', async (): Promise<number> => {
+    const removed = s.removeDuplicates()
+    if (removed === 0) return 0
+    suppressCurrentClipboardCapture()
+    await s.save()
+    notifyRenderer()
+    return removed
+  })
+
   // S5: 메모리 리셋(핀 포함 전체) — D15/D17
   ipcMain.handle('clip:reset', async (): Promise<boolean> => {
     s.clear()
@@ -251,10 +274,29 @@ function registerIpc(s: ClipboardStore): void {
   // S5: 설정 조회/변경 — D17
   ipcMain.handle('settings:get', (): AppSettings => settings?.get() ?? DEFAULT_SETTINGS)
 
+  // 새 키를 먼저 등록해 보고 성공한 경우에만 기존 키·저장값을 교체한다.
+  ipcMain.handle(
+    'hotkey:set',
+    async (_event, raw: unknown): Promise<{ ok: boolean; settings: AppSettings }> => {
+      const current = settings?.get() ?? DEFAULT_SETTINGS
+      if (!settings || typeof raw !== 'string' || raw.length === 0) {
+        return { ok: false, settings: current }
+      }
+      if (!replaceHotkey(current.hotkey, raw)) {
+        return { ok: false, settings: current }
+      }
+      const next = settings.set({ hotkey: raw })
+      await settings.save()
+      notifySettings(next)
+      return { ok: true, settings: next }
+    }
+  )
+
   ipcMain.handle('settings:set', async (_event, raw: unknown): Promise<AppSettings> => {
     if (!settings) return DEFAULT_SETTINGS
     const prev = settings.get()
-    const next = settings.set((raw ?? {}) as Partial<AppSettings>)
+    const { hotkey: _hotkey, ...patch } = (raw ?? {}) as Partial<AppSettings>
+    const next = settings.set(patch)
     applySettingsSideEffects(prev, next, s)
     await settings.save()
     if (next.keepCount !== prev.keepCount) {

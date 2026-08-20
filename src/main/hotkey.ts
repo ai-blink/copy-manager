@@ -17,8 +17,13 @@ export function unregisterHotkey(): void {
   globalShortcut.unregisterAll()
 }
 
-/** 핫키 재등록(설정 변경 시). 기존 등록 해제 후 새 accelerator 로 등록. */
-export function reRegisterHotkey(accelerator: string): boolean {
-  unregisterHotkey()
-  return registerHotkey(accelerator)
+/**
+ * 새 핫키가 실제로 등록될 때만 이전 핫키를 해제한다.
+ * 다른 앱이 선점한 경우 false 를 반환하며, 기존 등록은 그대로 유지한다.
+ */
+export function replaceHotkey(previous: string, next: string): boolean {
+  if (previous === next) return true
+  if (!registerHotkey(next)) return false
+  globalShortcut.unregister(previous)
+  return true
 }

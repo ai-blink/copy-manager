@@ -23,6 +23,8 @@ const api = {
   deleteItem: (id: string): Promise<boolean> => ipcRenderer.invoke('clip:delete', id),
   /** 모두 지우기(핀 제외) — D15 */
   clearUnpinned: (): Promise<boolean> => ipcRenderer.invoke('clip:clear'),
+  /** 중복 기록 일괄 제거 — 핀은 보존하고 비핀 중 최신 1개만 남긴다. */
+  removeDuplicates: (): Promise<number> => ipcRenderer.invoke('clip:deduplicate'),
   /** 메모리 리셋(핀 포함 전체) — D15/D17 */
   resetMemory: (): Promise<boolean> => ipcRenderer.invoke('clip:reset'),
   /** 설정 조회 — D17 */
@@ -30,6 +32,9 @@ const api = {
   /** 설정 변경(부분 갱신). 갱신된 전체 설정 반환 — D17 */
   setSettings: (patch: Partial<AppSettings>): Promise<AppSettings> =>
     ipcRenderer.invoke('settings:set', patch),
+  /** 새 전역 단축키 등록을 시도한다. 실패하면 기존 단축키·설정이 그대로 반환된다. */
+  setHotkey: (hotkey: string): Promise<{ ok: boolean; settings: AppSettings }> =>
+    ipcRenderer.invoke('hotkey:set', hotkey),
   /** 새 항목 적재 등 히스토리 변경 알림 구독 */
   onHistoryChanged: (cb: () => void): void => {
     ipcRenderer.on('history:changed', () => cb())

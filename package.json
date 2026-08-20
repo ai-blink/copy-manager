@@ -1,6 +1,6 @@
 {
   "name": "copy-manager",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "private": true,
   "description": "Windows clipboard manager (Electron + TypeScript) — win+v 대체 개인용 도구",
   "author": "user",

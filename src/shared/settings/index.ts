@@ -6,6 +6,8 @@ import { dirname } from 'node:path'
 // 렌더러는 이 파일에서 타입만 `import type` 으로 가져온다(런타임 node:fs 미번들).
 
 export type RemoteMode = 'dwell' | 'click'
+export const MIN_KEEP_COUNT = 1
+export const MAX_KEEP_COUNT = 1000
 export type WindowPlacement =
   | 'top-left'
   | 'top'
@@ -32,7 +34,7 @@ export interface AppSettings {
   windowPlacement: WindowPlacement
   /** 사용자가 헤더를 드래그해 옮긴 실제 창 좌표. 없으면 9분할 배치값을 사용한다. */
   windowPosition: WindowPosition | null
-  /** 비핀 히스토리 유지 개수 (D7) */
+  /** 비핀 히스토리 유지 개수 (1~1000, D7) */
   keepCount: number
   /** 리모컨 평소 투명도 0~1 (D10) */
   remoteOpacity: number
@@ -62,7 +64,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   uiScale: 1,
   windowPlacement: 'center',
   windowPosition: null,
-  keepCount: 50,
+  keepCount: 100,
   remoteOpacity: 0.65,
   dwellMs: 700,
   scrollSpeed: 6,
@@ -79,8 +81,13 @@ export const DEFAULT_SETTINGS: AppSettings = {
 }
 
 interface SettingsPersist {
-  version: 1
+  version: number
   settings: AppSettings
+}
+
+function normalizeKeepCount(value: unknown, fallback: number): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return fallback
+  return Math.min(MAX_KEEP_COUNT, Math.max(MIN_KEEP_COUNT, Math.floor(value)))
 }
 
 export class SettingsStore {
@@ -104,6 +111,7 @@ export class SettingsStore {
     this.data = {
       ...this.data,
       ...patch,
+      keepCount: normalizeKeepCount(patch.keepCount, this.data.keepCount),
       windowPosition:
         patch.windowPosition === undefined
           ? this.data.windowPosition
@@ -133,12 +141,25 @@ export class SettingsStore {
       throw err
     }
     const parsed = JSON.parse(raw) as Partial<SettingsPersist>
-    this.data = { ...DEFAULT_SETTINGS, ...(parsed.settings ?? {}) }
+    const persisted: Partial<AppSettings> = parsed.settings ?? {}
+    // v1의 50은 이전 기본값이므로 새 기본값 100으로 한 번 마이그레이션한다.
+    // 이후 저장 파일은 v2가 되어 사용자가 다시 고른 50은 그대로 유지된다.
+    const migrateLegacyDefault = parsed.version === 1 && persisted.keepCount === 50
+    const keepCount =
+      migrateLegacyDefault
+        ? DEFAULT_SETTINGS.keepCount
+        : normalizeKeepCount(persisted.keepCount, DEFAULT_SETTINGS.keepCount)
+    this.data = {
+      ...DEFAULT_SETTINGS,
+      ...persisted,
+      keepCount
+    }
+    if (migrateLegacyDefault) await this.save()
   }
 
   /** 현재 설정을 JSON 파일로 저장(디렉토리 없으면 생성). */
   async save(): Promise<void> {
-    const payload: SettingsPersist = { version: 1, settings: this.data }
+    const payload: SettingsPersist = { version: 2, settings: this.data }
     await fs.mkdir(dirname(this.filePath), { recursive: true })
     await fs.writeFile(this.filePath, JSON.stringify(payload, null, 2), 'utf8')
   }
