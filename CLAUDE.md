@@ -4,7 +4,7 @@ Windows 11 `win+v`의 좁은 화면과 탐색 중 닫힘 문제를 해결하는 
 
 ## 상태와 경계
 
-- `main`, 앱 `0.2.2`, S1~S9 구현 완료. Electron 42 + TypeScript 6(strict) + electron-vite 5 + Vite 7 + Vitest 4, Windows 전용.
+- `main`, 앱 `0.2.3`, S1~S9 구현 완료. Electron 42 + TypeScript 6(strict) + electron-vite 5 + Vite 7 + Vitest 4, Windows 전용.
 - `typecheck`·테스트 33개·build·dist 통과 기록. 다음은 남은 GUI 수동 검증과 1주 실사용 평가다.
 - `%APPDATA%\copy-manager\`의 로컬 JSON을 사용하며 히스토리는 `safeStorage`/DPAPI로 암호화한다.
 - 전역 스크롤 리모컨·클라우드·다국어·`win+v` 가로채기·macOS/Linux는 범위 밖이다.

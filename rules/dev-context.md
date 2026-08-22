@@ -2,8 +2,8 @@
 
 ## 현재 상태 (2026-08-23)
 
-- 브랜치 `main`, 앱 버전 `0.2.2`. S1~S8 구현 완료.
-- `release\copy-manager Setup 0.2.2.exe`와 `release\win-unpacked\copy-manager.exe`를 패키징했다.
+- 브랜치 `main`, 앱 버전 `0.2.3`. S1~S9 구현 완료.
+- `release\copy-manager Setup 0.2.3.exe`와 `release\win-unpacked\copy-manager.exe`를 패키징했다.
 - 2026-08-15 전역 단축키 동작을 “재누름 시 숨김”에서 “창 복원·표시·활성화”로 변경했다.
 - 2026-08-20 기본 비핀 히스토리를 100개로 늘리고, 1~1000 직접 입력·빠른 값 선택과 핀 보존 중복 제거를 추가했다.
 - 2026-08-20 검색바에 현재 결과/최대 보유 개수를 표시하고, 설정을 왼쪽 사이드바 탭으로 분류했다.
