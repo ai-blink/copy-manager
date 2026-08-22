@@ -186,6 +186,20 @@ function writeItemToClipboard(item: ClipItem): void {
   }
 }
 
+/**
+ * 앱에서 항목을 복사·붙여넣기 한 직후 히스토리를 정리한다(D34).
+ * - 새 카드를 만들지 않고 그 항목을 맨 앞으로 승격해 중복 카드를 막는다.
+ * - 방금 쓴 클립보드가 폴링에 다시 잡히지 않도록 캡처를 억제한다. 억제 키는 item 내용이
+ *   아니라 *다시 읽은* 클립보드 값이어야 한다 — 이미지는 클립보드를 왕복하며 재인코딩돼
+ *   dataURL 바이트가 달라질 수 있어 원본과 비교하면 억제가 빗나간다.
+ */
+async function promoteAfterCopy(s: ClipboardStore, id: string): Promise<void> {
+  suppressCurrentClipboardCapture()
+  if (!s.promote(id)) return
+  await s.save()
+  notifyRenderer()
+}
+
 function registerIpc(s: ClipboardStore): void {
   // 최소 IPC 표면만 노출(보안).
   ipcMain.handle('app:get-info', () => getAppInfo())
@@ -206,11 +220,12 @@ function registerIpc(s: ClipboardStore): void {
     return alwaysOnTop
   })
 
-  // 클릭=복사: 클립보드에 쓰기만(창 유지) — D12
-  ipcMain.handle('clip:copy', (_event, rawId: unknown): boolean => {
+  // 클릭=복사: 클립보드에 쓰기만(창 유지) — D12. 그 항목은 맨 앞으로 승격(D34)
+  ipcMain.handle('clip:copy', async (_event, rawId: unknown): Promise<boolean> => {
     const item = s.getAll().find((i) => i.id === rawId)
     if (!item) return false
     writeItemToClipboard(item)
+    await promoteAfterCopy(s, item.id)
     return true
   })
 
@@ -219,6 +234,7 @@ function registerIpc(s: ClipboardStore): void {
     const item = s.getAll().find((i) => i.id === rawId)
     if (!item) return false
     writeItemToClipboard(item)
+    await promoteAfterCopy(s, item.id) // 붙여넣기도 재사용이므로 동일하게 승격(D34)
     getWindow()?.hide()
     await restoreLastActiveWindow() // 직전 앱 창에 포커스 복원(Windows 포그라운드 복귀)
     await delay(PASTE_FOCUS_DELAY_MS)

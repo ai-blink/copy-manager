@@ -118,3 +118,65 @@ describe('SettingsStore (D17)', () => {
     expect(reloaded.get().keepCount).toBe(50)
   })
 })
+
+describe('복사 토스트 설정 (D34)', () => {
+  it('(t-1) 기본값은 후보 비교에서 고른 보라 배색과 0.31 불투명도다', () => {
+    expect(DEFAULT_SETTINGS.toastTheme).toBe('accent')
+    expect(DEFAULT_SETTINGS.toastOpacity).toBe(0.31)
+    expect(DEFAULT_SETTINGS.toastFontSize).toBe(13)
+    expect(DEFAULT_SETTINGS.toastPadY).toBe(10)
+    expect(DEFAULT_SETTINGS.toastPadX).toBe(18)
+  })
+
+  it('(t-2) 범위를 벗어난 값은 최소·최대로 보정된다', () => {
+    const store = new SettingsStore(tmpFile())
+    const low = store.set({ toastOpacity: 0.05, toastFontSize: 4, toastPadY: 0, toastPadX: 2 })
+    expect(low.toastOpacity).toBe(0.25)
+    expect(low.toastFontSize).toBe(11)
+    expect(low.toastPadY).toBe(6)
+    expect(low.toastPadX).toBe(10)
+
+    const high = store.set({ toastOpacity: 3, toastFontSize: 99, toastPadY: 99, toastPadX: 99 })
+    expect(high.toastOpacity).toBe(1)
+    expect(high.toastFontSize).toBe(17)
+    expect(high.toastPadY).toBe(16)
+    expect(high.toastPadX).toBe(28)
+  })
+
+  it('(t-3) 알 수 없는 배색은 기존 값을 유지한다', () => {
+    const store = new SettingsStore(tmpFile())
+    store.set({ toastTheme: 'mint' })
+    // 'purple' 은 후보에 없는 값 — 잘못된 설정 파일/입력 방어
+    const next = store.set({ toastTheme: 'purple' as never })
+    expect(next.toastTheme).toBe('mint')
+  })
+
+  it('(t-4) 저장-재로딩 라운드트립에서 토스트 설정이 보존된다', async () => {
+    const path = tmpFile()
+    const store = new SettingsStore(path)
+    store.set({ toastTheme: 'black', toastOpacity: 0.42, toastFontSize: 16 })
+    await store.save()
+
+    const reloaded = new SettingsStore(path)
+    await reloaded.load()
+    const s = reloaded.get()
+    expect(s.toastTheme).toBe('black')
+    expect(s.toastOpacity).toBe(0.42)
+    expect(s.toastFontSize).toBe(16)
+  })
+
+  it('(t-5) 토스트 키가 없는 구버전 파일은 기본값으로 보강된다', async () => {
+    const path = tmpFile()
+    await fs.writeFile(
+      path,
+      JSON.stringify({ version: 2, settings: { cols: 4, keepCount: 200 } }),
+      'utf8'
+    )
+    const store = new SettingsStore(path)
+    await store.load()
+    const s = store.get()
+    expect(s.cols).toBe(4)
+    expect(s.toastTheme).toBe(DEFAULT_SETTINGS.toastTheme)
+    expect(s.toastOpacity).toBe(DEFAULT_SETTINGS.toastOpacity)
+  })
+})

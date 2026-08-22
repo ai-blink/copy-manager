@@ -8,6 +8,20 @@ import { dirname } from 'node:path'
 export type RemoteMode = 'dwell' | 'click'
 export const MIN_KEEP_COUNT = 1
 export const MAX_KEEP_COUNT = 1000
+
+/** 복사 토스트 배색(D34). 후보 비교에서 고른 4종. */
+export type ToastTheme = 'dark' | 'accent' | 'mint' | 'black'
+export const TOAST_THEMES: readonly ToastTheme[] = ['dark', 'accent', 'mint', 'black']
+
+/**
+ * 토스트 수치 설정의 허용 범위. 렌더러 슬라이더도 이 값을 쓰므로 최소/최대가 한 곳에만 있다.
+ */
+export const TOAST_LIMITS = {
+  opacity: { min: 0.25, max: 1 },
+  fontSize: { min: 11, max: 17 },
+  padY: { min: 6, max: 16 },
+  padX: { min: 10, max: 28 }
+} as const
 export type WindowPlacement =
   | 'top-left'
   | 'top'
@@ -56,6 +70,16 @@ export interface AppSettings {
   contentProtection: boolean
   /** 윈도우 시작(로그인) 시 앱 자동 실행 (D30). 패키징된 앱에서 정상 동작 */
   launchAtStartup: boolean
+  /** 복사 토스트 배색 (D34) */
+  toastTheme: ToastTheme
+  /** 토스트 배경 불투명도 0.25~1 (낮을수록 뒤 카드가 비친다, D34) */
+  toastOpacity: number
+  /** 토스트 글자 크기 px (11~17) */
+  toastFontSize: number
+  /** 토스트 세로 여백 px (6~16) */
+  toastPadY: number
+  /** 토스트 가로 여백 px (10~28) */
+  toastPadX: number
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -77,7 +101,13 @@ export const DEFAULT_SETTINGS: AppSettings = {
   // 보안 우선 기본값(D28): 민감 클립보드 내용이 화면 공유/녹화에 새지 않도록 기본 활성.
   contentProtection: true,
   // D30: 자동 실행은 사용자가 명시적으로 켜야 하는 옵트인(기본 꺼짐).
-  launchAtStartup: false
+  launchAtStartup: false,
+  // D34: 후보 비교에서 사용자가 고른 기본값(보라 액센트 + 투명도 0.31).
+  toastTheme: 'accent',
+  toastOpacity: 0.31,
+  toastFontSize: 13,
+  toastPadY: 10,
+  toastPadX: 18
 }
 
 interface SettingsPersist {
@@ -88,6 +118,45 @@ interface SettingsPersist {
 function normalizeKeepCount(value: unknown, fallback: number): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) return fallback
   return Math.min(MAX_KEEP_COUNT, Math.max(MIN_KEEP_COUNT, Math.floor(value)))
+}
+
+/** 범위를 벗어난 값·잘못된 타입은 fallback 으로 되돌린다(손상된 설정 파일 방어). */
+function clampNumber(
+  value: unknown,
+  fallback: number,
+  { min, max }: { min: number; max: number },
+  round: (n: number) => number = Math.round
+): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return fallback
+  return Math.min(max, Math.max(min, round(value)))
+}
+
+const roundHundredth = (n: number): number => Math.round(n * 100) / 100
+
+function normalizeToastTheme(value: unknown, fallback: ToastTheme): ToastTheme {
+  return TOAST_THEMES.includes(value as ToastTheme) ? (value as ToastTheme) : fallback
+}
+
+/** 토스트 관련 값만 보정해 반환 — set()/load() 양쪽에서 같은 규칙을 쓴다. */
+function normalizeToast(
+  source: Partial<AppSettings>,
+  base: Pick<
+    AppSettings,
+    'toastTheme' | 'toastOpacity' | 'toastFontSize' | 'toastPadY' | 'toastPadX'
+  >
+): Pick<AppSettings, 'toastTheme' | 'toastOpacity' | 'toastFontSize' | 'toastPadY' | 'toastPadX'> {
+  return {
+    toastTheme: normalizeToastTheme(source.toastTheme, base.toastTheme),
+    toastOpacity: clampNumber(
+      source.toastOpacity,
+      base.toastOpacity,
+      TOAST_LIMITS.opacity,
+      roundHundredth
+    ),
+    toastFontSize: clampNumber(source.toastFontSize, base.toastFontSize, TOAST_LIMITS.fontSize),
+    toastPadY: clampNumber(source.toastPadY, base.toastPadY, TOAST_LIMITS.padY),
+    toastPadX: clampNumber(source.toastPadX, base.toastPadX, TOAST_LIMITS.padX)
+  }
 }
 
 export class SettingsStore {
@@ -112,6 +181,7 @@ export class SettingsStore {
       ...this.data,
       ...patch,
       keepCount: normalizeKeepCount(patch.keepCount, this.data.keepCount),
+      ...normalizeToast(patch, this.data),
       windowPosition:
         patch.windowPosition === undefined
           ? this.data.windowPosition
@@ -152,7 +222,8 @@ export class SettingsStore {
     this.data = {
       ...DEFAULT_SETTINGS,
       ...persisted,
-      keepCount
+      keepCount,
+      ...normalizeToast(persisted, DEFAULT_SETTINGS)
     }
     if (migrateLegacyDefault) await this.save()
   }

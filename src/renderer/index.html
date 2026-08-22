@@ -25,6 +25,10 @@
         --cols: 3;
         --rowh: 150px;
         --remote-op: 0.65;
+        --toast-op: 0.31;
+        --toast-fs: 13px;
+        --toast-py: 10px;
+        --toast-px: 18px;
       }
       * {
         box-sizing: border-box;
@@ -188,9 +192,6 @@
         background: var(--sel);
         box-shadow: 0 0 0 1px var(--accent) inset;
       }
-      .card.flash {
-        transform: scale(0.97);
-      }
       .card .meta {
         display: flex;
         align-items: center;
@@ -230,25 +231,6 @@
         background-size: cover;
         background-position: center;
         border: 1px solid var(--line);
-      }
-      .card .copied {
-        position: absolute;
-        inset: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 6px;
-        background: rgba(90, 209, 154, 0.16);
-        color: var(--ok);
-        font-weight: 700;
-        font-size: 13px;
-        border-radius: 12px;
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity 0.12s;
-      }
-      .card.flash .copied {
-        opacity: 1;
       }
       /* S4 스크롤 리모컨 (창 내부 플로팅) */
       .remote {
@@ -688,24 +670,64 @@
         color: var(--text);
         background: var(--bg);
       }
+      /* 복사 토스트(D34). 배색은 .toast-<테마>, 수치는 CSS 변수로 설정에서 조절한다. */
       .toast {
         position: absolute;
         left: 50%;
         bottom: 48px;
         transform: translateX(-50%);
-        background: var(--ok);
-        color: #062018;
         font-weight: 700;
-        font-size: 12px;
-        padding: 6px 14px;
-        border-radius: 999px;
+        font-size: var(--toast-fs);
+        line-height: 1.5;
+        padding: var(--toast-py) var(--toast-px);
+        border-radius: 12px;
+        max-width: calc(100% - 48px);
+        text-align: left;
+        /* 최대 3줄까지 보여주고 넘치면 … */
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        overflow-wrap: anywhere;
         opacity: 0;
         transition: 0.2s;
         pointer-events: none;
         z-index: 50;
+        backdrop-filter: blur(10px);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
       }
       .toast.show {
         opacity: 1;
+      }
+      /* 설정 모달 안 미리보기 — 실제 토스트와 같은 배색/수치를 그 자리에서 보여준다. */
+      .toast-preview {
+        position: static;
+        transform: none;
+        opacity: 1;
+        max-width: 100%;
+        margin-top: 10px;
+        box-shadow: none;
+      }
+      /* A. 다크 글래스 — 앱 톤에 녹아듦 */
+      .toast-dark {
+        background: rgba(26, 26, 32, var(--toast-op));
+        border: 1px solid var(--line);
+        color: var(--text);
+      }
+      /* B. 보라 액센트 — 앱 강조색과 일관 */
+      .toast-accent {
+        background: rgba(192, 123, 240, var(--toast-op));
+        color: #1b1020;
+      }
+      /* C. 민트 — 가장 눈에 띔 */
+      .toast-mint {
+        background: rgba(90, 209, 154, var(--toast-op));
+        color: #062018;
+      }
+      /* E. 딥블랙 — 어떤 배경에서도 대비 확보 */
+      .toast-black {
+        background: rgba(8, 8, 12, var(--toast-op));
+        color: #f2f2f6;
       }
       @media (max-width: 640px) {
         .settings-layout {
@@ -758,7 +780,7 @@
         <div class="big">📋</div>
         <div id="emptyMsg">클립보드가 비어 있어요</div>
       </div>
-      <div class="toast" id="toast"></div>
+      <div class="toast toast-accent" id="toast"></div>
     </div>
     <div class="foot">
       <span><span class="kbd">←→↑↓</span> 탐색</span>
@@ -869,6 +891,22 @@
                     <span class="chip" data-placement="top-left">↖ 좌상</span><span class="chip" data-placement="top">↑ 상단</span><span class="chip" data-placement="top-right">↗ 우상</span><span class="chip" data-placement="left">← 좌</span><span class="chip" data-placement="center">• 중앙</span><span class="chip" data-placement="right">→ 우</span><span class="chip" data-placement="bottom-left">↙ 좌하</span><span class="chip" data-placement="bottom">↓ 하단</span><span class="chip" data-placement="bottom-right">↘ 우하</span>
                   </div>
                   <div class="note" style="margin-top: 6px">현재 창이 있는 모니터의 작업 영역 안에서 즉시 이동합니다.</div>
+                </div>
+                <div class="set-grp">
+                  <div class="lbl">복사 알림 배색</div>
+                  <div class="row" id="setToastThemeRow">
+                    <span class="chip" data-toast-theme="dark">다크</span><span class="chip" data-toast-theme="accent">보라</span><span class="chip" data-toast-theme="mint">민트</span><span class="chip" data-toast-theme="black">딥블랙</span>
+                  </div>
+                  <div class="lbl" style="margin-top: 12px">불투명도 <span class="v" id="setToastOpV">0.31</span></div>
+                  <input type="range" id="setToastOp" min="0.25" max="1" step="0.01" value="0.31" />
+                  <div class="lbl" style="margin-top: 10px">글자 크기 <span class="v" id="setToastFsV">13px</span></div>
+                  <input type="range" id="setToastFs" min="11" max="17" step="1" value="13" />
+                  <div class="lbl" style="margin-top: 10px">세로 여백 <span class="v" id="setToastPyV">10px</span></div>
+                  <input type="range" id="setToastPy" min="6" max="16" step="1" value="10" />
+                  <div class="lbl" style="margin-top: 10px">가로 여백 <span class="v" id="setToastPxV">18px</span></div>
+                  <input type="range" id="setToastPx" min="10" max="28" step="1" value="18" />
+                  <div class="toast toast-preview toast-accent" id="setToastPreview">✓ 복사됨 — "여기에 복사한 내용이 최대 3줄까지 보입니다"</div>
+                  <div class="note" style="margin-top: 8px">카드를 복사하면 창 아래에 잠깐 뜨는 알림입니다. 불투명도를 낮추면 뒤 카드가 비칩니다.</div>
                 </div>
               </section>
               <section class="settings-panel" data-settings-panel="history">

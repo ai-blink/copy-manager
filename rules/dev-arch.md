@@ -12,13 +12,13 @@ Windows clipboard
   → main: 복사 또는 직전 앱 포커스 복원 + Ctrl+V 합성
 ```
 
-- main 프로세스가 창·전역 단축키·클립보드 폴링·저장·붙여넣기·설정 부수효과를 소유한다. 중복 제거 직후에는 현재 OS 클립보드가 폴링으로 즉시 재적재되지 않도록, 클립보드 내용이 바뀔 때까지 해당 값만 캡처하지 않는다.
+- main 프로세스가 창·전역 단축키·클립보드 폴링·저장·붙여넣기·설정 부수효과를 소유한다. 중복 제거 직후와 앱에서 항목을 복사·붙여넣기 한 직후에는 현재 OS 클립보드가 폴링으로 즉시 재적재되지 않도록, 클립보드 내용이 바뀔 때까지 해당 값만 캡처하지 않는다. 억제 키는 항목 내용이 아니라 다시 읽은 클립보드 값이다(이미지는 왕복하며 재인코딩돼 dataURL 이 달라질 수 있다). 복사·붙여넣기는 그 항목을 새 카드 대신 맨 앞으로 승격한다(D34).
 - renderer는 UI 상태와 사용자 입력을 소유하며 Node API에 직접 접근하지 않는다.
 - preload는 `contextBridge`를 통해 고정된 API만 전달한다.
 
 ## 모듈 경계
 
-- `src/shared/clipboard-store/`: 캡처, 타입 분류, 기본 100개 ring buffer(1~1000 설정), 핀 영구 보존, 중복 정리, JSON 영속. Electron 비의존이며 `Cipher` 포트를 주입받는다.
+- `src/shared/clipboard-store/`: 캡처, 타입 분류, 기본 100개 ring buffer(1~1000 설정), 핀 영구 보존, 중복 정리, JSON 영속. 적재는 dedupe-on-insert 로, 같은 타입·내용이 이미 있으면 새 카드 대신 `promote()` 로 맨 앞에 올려 개수·id·핀을 보존한다(D34). Electron 비의존이며 `Cipher` 포트를 주입받는다.
 - `src/shared/settings/`: `SettingsStore`, 누락 키 기본값 보강, 재시작 리셋. Electron 비의존이다.
 - `src/main/cipher.ts`: Electron `safeStorage`/Windows DPAPI 암호화 어댑터와 평문 마이그레이션.
 - `src/main/window.ts`: frameless 창, 표시·활성화, 자동숨김, 항상 위, 화면 캡처 방지, 배율, 9분할 배치와 드래그 좌표 복원.

@@ -257,3 +257,92 @@ describe('저장 암호화 cipher 포트 (D29)', () => {
     expect(await fs.readFile(filePath, 'utf8')).not.toContain('legacy-secret')
   })
 })
+
+describe('재복사 승격 · 중복 카드 방지 (D34)', () => {
+  it('(e-1) promote 는 카드를 새로 만들지 않고 맨 앞으로 옮긴다(개수·id·핀 유지)', () => {
+    const store = newStore()
+    const a = store.add({ content: 'a' })
+    const b = store.add({ content: 'b' })
+    const c = store.add({ content: 'c' })
+    store.setPinned(a.id, true)
+
+    const promoted = store.promote(a.id)
+
+    expect(promoted?.id).toBe(a.id)
+    expect(promoted?.pinned).toBe(true) // 핀 상태는 승격으로 바뀌지 않는다
+    expect(store.size).toBe(3) // 카드가 늘지 않는다
+    expect(store.getAll().map((i) => i.content)).toEqual(['b', 'c', 'a'])
+    expect(store.latest()?.id).toBe(a.id)
+    expect(b.id).not.toBe(c.id)
+  })
+
+  it('(e-2) promote 는 없는 id 에 undefined 를 반환하고 히스토리를 건드리지 않는다', () => {
+    const store = newStore()
+    store.add({ content: 'a' })
+
+    expect(store.promote('없는-id')).toBeUndefined()
+    expect(store.getAll().map((i) => i.content)).toEqual(['a'])
+  })
+
+  it('(e-3) 히스토리 중간 항목과 같은 내용을 다시 복사하면 중복 카드 대신 승격된다', () => {
+    const store = newStore()
+    const first = store.add({ content: 'hello' })
+    store.add({ content: 'foo' })
+    store.add({ content: 'world' })
+
+    const captured = captureOnce({ readText: () => 'hello', readImageDataUrl: () => null }, store)
+
+    expect(captured?.id).toBe(first.id) // 새 카드가 아니라 원래 카드
+    expect(store.size).toBe(3)
+    expect(store.getAll().map((i) => i.content)).toEqual(['foo', 'world', 'hello'])
+  })
+
+  it('(e-4) 맨 앞 항목과 같은 내용이면 아무 변화 없이 null(폴링 노이즈)', () => {
+    const store = newStore()
+    store.add({ content: 'foo' })
+    const last = store.add({ content: 'hello' })
+    const before = last.createdAt
+
+    const captured = captureOnce({ readText: () => 'hello', readImageDataUrl: () => null }, store)
+
+    expect(captured).toBeNull()
+    expect(store.size).toBe(2)
+    expect(store.latest()?.createdAt).toBe(before) // 승격도 일어나지 않는다
+  })
+
+  it('(e-5) 이미지도 같은 dataURL 이면 중복 카드 대신 승격된다', () => {
+    const store = newStore()
+    const img = store.add({ type: 'image', content: 'data:image/png;base64,AAAA' })
+    store.add({ content: 'text-after' })
+
+    const captured = captureOnce(
+      { readText: () => '', readImageDataUrl: () => 'data:image/png;base64,AAAA' },
+      store
+    )
+
+    expect(captured?.id).toBe(img.id)
+    expect(store.size).toBe(2)
+    expect(store.latest()?.type).toBe('image')
+  })
+
+  it('(e-6) 승격은 개수를 늘리지 않으므로 ring buffer 축출을 유발하지 않는다', () => {
+    const store = newStore() // maxSize=50
+    for (let i = 0; i < 50; i++) store.add({ content: `item-${i}` })
+
+    captureOnce({ readText: () => 'item-0', readImageDataUrl: () => null }, store)
+
+    expect(store.size).toBe(50) // 51번째 카드가 생기지 않아 축출도 없다
+    expect(store.getAll()[0]?.content).toBe('item-1')
+    expect(store.latest()?.content).toBe('item-0')
+  })
+
+  it('(e-7) 다른 내용은 그대로 새 카드로 적재된다', () => {
+    const store = newStore()
+    store.add({ content: 'hello' })
+
+    const captured = captureOnce({ readText: () => 'brand-new', readImageDataUrl: () => null }, store)
+
+    expect(captured?.content).toBe('brand-new')
+    expect(store.size).toBe(2)
+  })
+})

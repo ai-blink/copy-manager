@@ -1,5 +1,5 @@
 import type { ClipItem, ClipType } from '../../shared/clipboard-store'
-import type { AppSettings } from '../../shared/settings'
+import type { AppSettings, ToastTheme } from '../../shared/settings'
 import { mountScrollRemote } from './scroll-remote'
 
 // 렌더러(vanilla TS). mockup v4 로직을 타입 안전하게 포팅.
@@ -14,6 +14,18 @@ const TYPE_LABEL: Record<ClipType, string> = {
   code: '코드'
 }
 
+const TOAST_MS = 900 // 복사 토스트 노출 시간
+// 토스트 배색 클래스. shared/settings 의 ToastTheme 과 짝이지만, 렌더러는 그 모듈을
+// `import type` 으로만 참조해야 하므로(런타임 node:fs 누출 금지) 목록을 여기 둔다.
+const TOAST_THEME_CLASSES: Record<ToastTheme, string> = {
+  dark: 'toast-dark',
+  accent: 'toast-accent',
+  mint: 'toast-mint',
+  black: 'toast-black'
+}
+// 토스트는 최대 3줄까지 보여주므로(CSS line-clamp) 그만큼은 내용을 넘긴다.
+const TOAST_CONTENT_MAX = 100
+
 let cols = 3 // D4: 한 줄 카드 수(설정 모달에서 2~5 변경). 시작값 3.
 
 let items: ClipItem[] = [] // 최신이 앞(store 는 [old...new] 라 reverse)
@@ -21,6 +33,7 @@ let tab = '전체'
 let filter = ''
 let sel = 0
 let keepCount = 100
+let toastTimer: number | undefined
 
 function $<T extends HTMLElement>(id: string): T {
   const el = document.getElementById(id)
@@ -30,6 +43,8 @@ function $<T extends HTMLElement>(id: string): T {
 
 const listEl = $<HTMLDivElement>('list')
 const bodyAreaEl = $<HTMLDivElement>('bodyArea')
+const toastEl = $<HTMLDivElement>('toast')
+const toastPreviewEl = $<HTMLDivElement>('setToastPreview')
 const emptyEl = $<HTMLDivElement>('empty')
 const emptyMsgEl = $<HTMLDivElement>('emptyMsg')
 const countHintEl = $<HTMLSpanElement>('countHint')
@@ -67,11 +82,35 @@ function timeAgo(ts: number): string {
   return `${Math.floor(s / 86400)}일 전`
 }
 
-async function doCopy(item: ClipItem, cardEl: HTMLElement): Promise<void> {
+/**
+ * 복사 피드백은 카드가 아니라 창 하단 고정 토스트로 알린다(D34).
+ * 복사한 카드는 곧바로 맨 앞으로 승격돼 위치가 바뀌므로, 피드백을 카드에 붙이면
+ * 시선이 원래 누른 자리에 남아 놓치게 된다. 위치가 고정이면 이동과 무관하게 보인다.
+ */
+function showToast(text: string): void {
+  toastEl.textContent = text
+  toastEl.classList.add('show')
+  window.clearTimeout(toastTimer)
+  toastTimer = window.setTimeout(() => toastEl.classList.remove('show'), TOAST_MS)
+}
+
+/** 토스트에 보여줄 복사 내용 요약. 넘치는 부분은 CSS 3줄 클램프가 다시 접는다. */
+function copyToastText(item: ClipItem): string {
+  if (item.type === 'image') return '✓ 이미지 복사됨'
+  const oneLine = item.content.replace(/\s+/g, ' ').trim()
+  const head =
+    oneLine.length > TOAST_CONTENT_MAX ? `${oneLine.slice(0, TOAST_CONTENT_MAX)}…` : oneLine
+  return `✓ 복사됨 — "${head}"`
+}
+
+async function doCopy(item: ClipItem): Promise<void> {
   const ok = await window.copyManager.copy(item.id)
   if (!ok) return
-  cardEl.classList.add('flash')
-  setTimeout(() => cardEl.classList.remove('flash'), 650)
+  showToast(copyToastText(item))
+  // 승격으로 맨 앞에 오므로 선택도 따라 옮기고, 이동한 카드가 보이도록 스크롤한다.
+  sel = 0
+  render()
+  selectAt(0)
 }
 
 async function doPaste(item: ClipItem): Promise<void> {
@@ -137,15 +176,10 @@ function buildCard(it: ClipItem, index: number): HTMLDivElement {
     card.appendChild(content)
   }
 
-  const copied = document.createElement('div')
-  copied.className = 'copied'
-  copied.textContent = '✓ 복사됨'
-  card.appendChild(copied)
-
   card.addEventListener('click', () => {
     sel = index
     selectAt(index)
-    void doCopy(it, card)
+    void doCopy(it)
   })
   card.addEventListener('dblclick', () => {
     void doPaste(it)
@@ -396,8 +430,7 @@ ctxEl.querySelectorAll<HTMLElement>('.mi').forEach((mi) => {
     const it = ctxItem
     if (!it) return
     if (act === 'copy') {
-      const cardEl = listEl.children[sel]
-      if (cardEl instanceof HTMLElement) void doCopy(it, cardEl)
+      void doCopy(it)
     } else if (act === 'paste') {
       void doPaste(it)
     } else if (act === 'detail') {
@@ -480,6 +513,17 @@ function syncSettingsControls(s: AppSettings): void {
   document
     .querySelectorAll<HTMLElement>('#setModeRow .chip')
     .forEach((c) => c.classList.toggle('on', c.dataset['mode'] === s.remoteMode))
+  document
+    .querySelectorAll<HTMLElement>('#setToastThemeRow .chip')
+    .forEach((c) => c.classList.toggle('on', c.dataset['toastTheme'] === s.toastTheme))
+  $<HTMLInputElement>('setToastOp').value = String(s.toastOpacity)
+  $('setToastOpV').textContent = s.toastOpacity.toFixed(2)
+  $<HTMLInputElement>('setToastFs').value = String(s.toastFontSize)
+  $('setToastFsV').textContent = `${s.toastFontSize}px`
+  $<HTMLInputElement>('setToastPy').value = String(s.toastPadY)
+  $('setToastPyV').textContent = `${s.toastPadY}px`
+  $<HTMLInputElement>('setToastPx').value = String(s.toastPadX)
+  $('setToastPxV').textContent = `${s.toastPadX}px`
   $<HTMLInputElement>('remoteEnabled').checked = s.remoteEnabled
   $<HTMLInputElement>('keepOpen').checked = s.keepOpen
   $<HTMLInputElement>('rebootReset').checked = s.rebootReset
@@ -487,9 +531,23 @@ function syncSettingsControls(s: AppSettings): void {
   $<HTMLInputElement>('launchAtStartup').checked = s.launchAtStartup
 }
 
+/** 토스트 배색·수치를 실제 토스트와 설정 미리보기 양쪽에 반영한다(D34). */
+function applyToastStyle(s: AppSettings): void {
+  const root = document.documentElement.style
+  root.setProperty('--toast-op', String(s.toastOpacity))
+  root.setProperty('--toast-fs', `${s.toastFontSize}px`)
+  root.setProperty('--toast-py', `${s.toastPadY}px`)
+  root.setProperty('--toast-px', `${s.toastPadX}px`)
+  const active = TOAST_THEME_CLASSES[s.toastTheme]
+  for (const el of [toastEl, toastPreviewEl]) {
+    Object.values(TOAST_THEME_CLASSES).forEach((cls) => el.classList.toggle(cls, cls === active))
+  }
+}
+
 function applySettings(s: AppSettings): void {
   cols = s.cols
   keepCount = s.keepCount
+  applyToastStyle(s)
   setAotBtn(s.alwaysOnTop)
   document.documentElement.style.setProperty('--cols', String(s.cols))
   remote.setOpacity(s.remoteOpacity)
@@ -553,6 +611,45 @@ document.querySelectorAll<HTMLElement>('#setKeepPresets .chip').forEach((c) => {
     if (Number.isInteger(keepCount)) void patchSettings({ keepCount })
   })
 })
+
+// 토스트 배색 칩
+document.querySelectorAll<HTMLElement>('#setToastThemeRow .chip').forEach((c) => {
+  c.addEventListener('click', () => {
+    const toastTheme = c.dataset['toastTheme'] as ToastTheme | undefined
+    if (toastTheme) void patchSettings({ toastTheme })
+  })
+})
+
+/**
+ * 토스트 수치 슬라이더 — 드래그 중(input)에는 CSS 변수만 바꿔 미리보기에 즉시 비치고,
+ * 손을 뗄 때(change) 한 번만 영속한다(드래그마다 파일을 쓰지 않도록).
+ */
+function bindToastRange(
+  id: string,
+  valueId: string,
+  cssVar: string,
+  format: (v: string) => string,
+  toPatch: (v: number) => Partial<AppSettings>
+): void {
+  const el = $<HTMLInputElement>(id)
+  el.addEventListener('input', () => {
+    const shown = format(el.value)
+    $(valueId).textContent = shown
+    document.documentElement.style.setProperty(cssVar, shown)
+  })
+  el.addEventListener('change', () => void patchSettings(toPatch(Number(el.value))))
+}
+
+bindToastRange('setToastOp', 'setToastOpV', '--toast-op', (v) => v, (v) => ({ toastOpacity: v }))
+bindToastRange(
+  'setToastFs',
+  'setToastFsV',
+  '--toast-fs',
+  (v) => `${v}px`,
+  (v) => ({ toastFontSize: v })
+)
+bindToastRange('setToastPy', 'setToastPyV', '--toast-py', (v) => `${v}px`, (v) => ({ toastPadY: v }))
+bindToastRange('setToastPx', 'setToastPxV', '--toast-px', (v) => `${v}px`, (v) => ({ toastPadX: v }))
 
 const setUiScaleEl = $<HTMLInputElement>('setUiScale')
 setUiScaleEl.addEventListener('input', () => {
@@ -637,7 +734,7 @@ function setAotBtn(on: boolean): void {
 winPinBtn.addEventListener('click', () => {
   void window.copyManager.toggleAlwaysOnTop().then(setAotBtn)
 })
-// 스크롤 리모컨 표시(remoteEnabled) — 설정 "스크롤 리모컨 사용" 체크박스 전용 (D31)
+// 스크롤 리모컨 표시(remoteEnabled) — 설정 "스크롤 리모컨 사용" 체크박스 전용 (D34)
 $<HTMLInputElement>('remoteEnabled').addEventListener('change', (e) =>
   void patchSettings({ remoteEnabled: (e.target as HTMLInputElement).checked })
 )

@@ -1,6 +1,6 @@
 import { promises as fs } from 'node:fs'
 import { dirname } from 'node:path'
-import type { AddInput, ClipItem, PersistShape } from './types'
+import type { AddInput, ClipItem, ClipType, PersistShape } from './types'
 import { classifyText } from './classify'
 
 /**
@@ -84,6 +84,34 @@ export class ClipboardStore {
     this.items.push(item)
     this.evict()
     return item
+  }
+
+  /**
+   * 이미 있는 항목을 최신 위치(배열 끝 = 화면 맨 앞)로 옮긴다 — 재복사 승격(D34).
+   * 새 카드를 만들지 않으므로 보유 개수·id·pinned 가 그대로 유지되고, createdAt 만
+   * 갱신해 카드의 경과 시간 표시가 실제 마지막 사용 시각을 따른다.
+   * @returns 승격된 항목. 해당 id 가 없으면 undefined.
+   */
+  promote(id: string, at?: number): ClipItem | undefined {
+    const index = this.items.findIndex((i) => i.id === id)
+    if (index < 0) return undefined
+    const [item] = this.items.splice(index, 1)
+    if (!item) return undefined
+    item.createdAt = at ?? Date.now()
+    this.items.push(item)
+    return item
+  }
+
+  /**
+   * 같은 타입·내용의 항목 중 가장 최신 것을 찾는다 — 적재 전 중복 판정(D34)에 쓴다.
+   * 핀 여부는 가리지 않는다(핀도 승격 대상).
+   */
+  findLatestByContent(type: ClipType, content: string): ClipItem | undefined {
+    for (let index = this.items.length - 1; index >= 0; index--) {
+      const item = this.items[index]
+      if (item && item.type === type && item.content === content) return item
+    }
+    return undefined
   }
 
   /** 핀 토글. 핀 해제 시 즉시 ring buffer 규칙 재적용. */

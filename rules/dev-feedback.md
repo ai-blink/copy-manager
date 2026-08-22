@@ -1,6 +1,6 @@
 ---
 description: 반복 실수 패턴 + 프로젝트 운영 원칙. Stop hook dev-docs-enforcer 필수 파일.
-updated: 2026-08-19
+updated: 2026-08-23
 ---
 
 # dev-feedback — copy-manager
@@ -12,6 +12,7 @@ updated: 2026-08-19
 - **백업은 git**: `.bak`·`복사본` 금지. 복원은 history.
 - **정본 분리**: `CLAUDE.md`는 진입점, `README.md`는 사용자 안내, `rules/`는 현재 결정·상태, `notes/`는 검증·역사 자료로 유지.
 - **결정·계획은 문서로**: 대화에만 두지 말고 관련 `rules/dev-*.md`에 반영.
+- **결정 번호는 마지막 번호 확인 후 부여**: 코드 주석에 `D<n>`을 쓰기 전에 `rules/dev-decisions.md`의 마지막 행을 먼저 본다. 이미 쓰인 번호를 재사용하면 주석과 결정표가 서로 다른 결정을 가리켜 조용히 어긋난다(2026-08-23 D31 중복 부여 → D34로 정정).
 - **느슨 결합 유지**: `clipboard-store`·`scroll-remote`·`settings`는 electron 비의존(테스트 가능·전역판 분리 대비, D18/D25).
 
 ## 재발 방지 패턴 (recurring-mistakes)
@@ -28,5 +29,10 @@ updated: 2026-08-19
 - **preload는 CJS(.cjs)** — Electron sandbox는 ESM preload 미지원(D19).
 - **프레임리스 창이 안 움직임** — `frame:false` 창은 OS 드래그 영역이 없으면 마우스로 이동 불가.
   → 타이틀바(`.head`)에 `-webkit-app-region: drag`, 그 안의 버튼/입력(`.hbtn` 등)엔 `-webkit-app-region: no-drag`(클릭 유지). 더블클릭=최대화 부작용 가능.
+- **앱이 OS 클립보드에 쓰는 경로마다 캡처 억제가 필요** — 폴링(800ms)은 앱이 쓴 값도 사용자 복사로 오인한다. `clip:deduplicate`에만 억제를 걸고 `clip:copy`/`clip:paste`를 빼놓아 재복사 때마다 중복 카드가 생겼다(같은 함정 2회).
+  → 클립보드에 쓰는 **모든** 경로에서 `suppressCurrentClipboardCapture()` 호출. 억제 키는 항목 내용이 아니라 *다시 읽은* 클립보드 값이어야 한다(이미지는 왕복 시 재인코딩으로 dataURL 바이트가 달라져 원본과 비교하면 억제가 빗나감).
+  → 억제는 타이밍에 기대므로 최종 방어선은 적재 경로의 dedupe-on-insert 다(D34).
+- **승격으로 카드가 재생성되면 DOM 참조 피드백이 끊김** — '✓ 복사됨' 애니메이션을 카드 엘리먼트에 걸면 목록이 다시 그려질 때 사라진다.
+  → 엘리먼트가 아니라 **id**(`flashId`)로 추적해 렌더 시 클래스를 다시 붙인다.
 - **드래그 위치가 재실행 뒤 겹침** — 프리셋 위치만 저장하면 임의 드래그는 임시 상태가 된다.
   → `windowPosition`을 250ms 디바운스로 저장하고, 다음 실행 때 가장 가까운 화면의 작업 영역 안으로 보정해 복원(D32).
