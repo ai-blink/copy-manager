@@ -19,7 +19,7 @@ Windows clipboard
 ## 모듈 경계
 
 - `src/shared/clipboard-store/`: 캡처, 타입 분류, 기본 100개 ring buffer(1~1000 설정), 핀 영구 보존, 중복 정리, JSON 영속. 적재는 dedupe-on-insert 로, 같은 타입·내용이 이미 있으면 새 카드 대신 `promote()` 로 맨 앞에 올려 개수·id·핀을 보존한다(D34). Electron 비의존이며 `Cipher` 포트를 주입받는다.
-- `src/shared/settings/`: `SettingsStore`, 누락 키 기본값 보강, 재시작 리셋. Electron 비의존이다.
+- `src/shared/settings/`: `SettingsStore`, 누락 키 기본값 보강, 재시작 리셋. 토스트 배색(`toastTheme` 4종)과 불투명도·글자 크기·여백은 `TOAST_LIMITS` 범위로 보정한다(잘못된 값은 기본값으로 되돌린다). Electron 비의존이다.
 - `src/main/cipher.ts`: Electron `safeStorage`/Windows DPAPI 암호화 어댑터와 평문 마이그레이션.
 - `src/main/window.ts`: frameless 창, 표시·활성화, 자동숨김, 항상 위, 화면 캡처 방지, 배율, 9분할 배치와 드래그 좌표 복원.
 - `src/main/hotkey.ts`: 전역 단축키 등록·교체. 새 키 등록에 실패하면 이전 키를 해제하지 않는다.
