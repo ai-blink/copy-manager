@@ -77,6 +77,21 @@ describe('ClipboardStore ring buffer (D7)', () => {
     // u-1 은 생존
     expect(store.getAll().some((i) => i.content === 'u-1')).toBe(true)
   })
+
+  it('(c-2) 제한 200개에서 새 항목은 가장 오래된 비핀을 교체하고 최신으로 남는다', () => {
+    const store = new ClipboardStore({ filePath: tmpFile(), maxSize: 200 })
+    for (let i = 0; i < 200; i++) {
+      store.add({ content: `item-${i}`, createdAt: 1_000 + i })
+    }
+
+    const newest = store.add({ content: 'brand-new-at-limit', createdAt: 2_000 })
+
+    expect(store.unpinnedCount).toBe(200)
+    expect(store.size).toBe(200)
+    expect(store.getAll().some((item) => item.content === 'item-0')).toBe(false)
+    expect(store.latest()?.id).toBe(newest.id)
+    expect(store.latest()?.content).toBe('brand-new-at-limit')
+  })
 })
 
 describe('classifyText 타입 분류 (D16)', () => {
@@ -134,6 +149,22 @@ describe('JSON 영속화 (S2)', () => {
     const store = new ClipboardStore({ filePath: tmpFile(), maxSize: 50 })
     await store.load()
     expect(store.size).toBe(0)
+  })
+
+  it('(e-3) 겹쳐 요청한 저장도 호출 순서대로 반영해 마지막 스냅샷을 보존한다', async () => {
+    const filePath = tmpFile()
+    const store = new ClipboardStore({ filePath, maxSize: 50 })
+    store.add({ content: 'first', createdAt: 1 })
+    const firstSave = store.save()
+    store.add({ content: 'second', createdAt: 2 })
+    const secondSave = store.save()
+
+    await Promise.all([firstSave, secondSave])
+
+    const reloaded = new ClipboardStore({ filePath, maxSize: 50 })
+    await reloaded.load()
+    expect(reloaded.getAll().map((item) => item.content)).toEqual(['first', 'second'])
+    await expect(fs.stat(`${filePath}.tmp`)).rejects.toMatchObject({ code: 'ENOENT' })
   })
 })
 

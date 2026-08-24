@@ -30,8 +30,14 @@ import {
 import { registerHotkey, unregisterHotkey, replaceHotkey } from './hotkey'
 import { sendCtrlV } from './paste'
 import { createSafeStorageCipher } from './cipher'
+import {
+  startWindowsClipboardWatcher,
+  type ClipboardWatcherHandle
+} from './clipboard-watcher'
 
-const POLL_INTERVAL_MS = 800
+// 빠른 연속 복사 누락을 줄인다. 저장은 아래에서 디바운스하므로 폴링과 디스크 쓰기를 분리한다.
+const POLL_INTERVAL_MS = 250
+const HISTORY_SAVE_DEBOUNCE_MS = 350
 const HISTORY_FILE = 'clip-history.json'
 const SETTINGS_FILE = 'settings.json'
 // 붙여넣기: 창을 숨기고 직전 앱에 포커스를 복원한 뒤, 안정화 시간을 두고 Ctrl+V 합성.
@@ -51,8 +57,11 @@ const electronReader: ClipboardReader = {
 let store: ClipboardStore | null = null
 let settings: SettingsStore | null = null
 let pollTimer: ReturnType<typeof setInterval> | null = null
+let clipboardWatcher: ClipboardWatcherHandle | null = null
+let historySaveTimer: ReturnType<typeof setTimeout> | null = null
 let windowPositionTimer: ReturnType<typeof setTimeout> | null = null
 let suppressedCapture: Pick<ClipItem, 'type' | 'content'> | null = null
+let historyFlushedForQuit = false
 
 function getAppInfo(): { version: string; mode: string } {
   return {
@@ -151,8 +160,8 @@ function loadRenderer(win: BrowserWindow): void {
   }
 }
 
-function startCapturePolling(s: ClipboardStore): void {
-  pollTimer = setInterval(() => {
+function captureCurrentClipboard(s: ClipboardStore): void {
+  try {
     const added = captureOnce(electronReader, s, (type, content) => {
       if (!suppressedCapture) return false
       if (suppressedCapture.type === type && suppressedCapture.content === content) return true
@@ -160,10 +169,43 @@ function startCapturePolling(s: ClipboardStore): void {
       return false
     })
     if (added) {
-      void s.save()
+      scheduleHistorySave(s)
       notifyRenderer() // S3: 새 항목 적재 시 렌더러 그리드 갱신
     }
-  }, POLL_INTERVAL_MS)
+  } catch (err) {
+    // 다른 프로세스가 클립보드를 잠시 점유했으면 다음 변경 이벤트/안전망 폴링에서 재시도한다.
+    console.warn('[copy-manager] 클립보드 읽기 실패(재시도 예정):', err)
+  }
+}
+
+function startClipboardCapture(s: ClipboardStore): void {
+  // WM_CLIPBOARDUPDATE가 즉시 캡처를 깨우고, 폴링은 감시 프로세스 실패/경쟁 상태의 안전망이다.
+  clipboardWatcher = startWindowsClipboardWatcher({
+    onChange: () => captureCurrentClipboard(s),
+    onReady: () => console.info('[copy-manager] Windows 클립보드 변경 감시 시작'),
+    onError: (err) => console.warn('[copy-manager] 변경 감시 실패 — 250ms 폴링 유지:', err)
+  })
+  pollTimer = setInterval(() => captureCurrentClipboard(s), POLL_INTERVAL_MS)
+}
+
+/** 연속 복사 중에는 메모리/UI를 즉시 갱신하고, 전체 파일 저장은 마지막 변경 뒤 한 번 수행한다. */
+function scheduleHistorySave(s: ClipboardStore): void {
+  if (historySaveTimer) clearTimeout(historySaveTimer)
+  historySaveTimer = setTimeout(() => {
+    historySaveTimer = null
+    void s.save().catch((err: unknown) => {
+      console.warn('[copy-manager] 클립보드 히스토리 저장 실패:', err)
+    })
+  }, HISTORY_SAVE_DEBOUNCE_MS)
+}
+
+/** 종료 직전 대기 중인 디바운스 저장까지 모두 디스크에 반영한다. */
+async function flushHistorySave(s: ClipboardStore): Promise<void> {
+  if (historySaveTimer) {
+    clearTimeout(historySaveTimer)
+    historySaveTimer = null
+  }
+  await s.save()
 }
 
 /** 중복 제거 직후 현재 OS 클립보드가 폴링으로 즉시 다시 적재되지 않도록 억제한다. */
@@ -324,7 +366,7 @@ function registerIpc(s: ClipboardStore): void {
   })
 }
 
-app.whenReady().then(async () => {
+async function initializeApp(): Promise<void> {
   const userData = app.getPath('userData')
   // D29: 저장 암호화(safeStorage/DPAPI). app ready 이후 cipher 생성 → store 에 주입.
   // 기존 평문 clip-history.json 은 load 시 그대로 읽히고, 다음 save 때 암호화로 마이그레이션.
@@ -359,7 +401,7 @@ app.whenReady().then(async () => {
   if (!registerHotkey(cfg.hotkey)) {
     console.warn('[copy-manager] 전역 핫키 등록 실패(다른 앱이 선점했을 수 있음)')
   }
-  startCapturePolling(store)
+  startClipboardCapture(store)
 
   app.on('activate', () => {
     if (getWindow() === null) {
@@ -368,12 +410,41 @@ app.whenReady().then(async () => {
       watchWindowPosition(w)
     }
   })
-})
+}
+
+const hasSingleInstanceLock = app.requestSingleInstanceLock()
+
+if (!hasSingleInstanceLock) {
+  app.quit()
+} else {
+  app.on('second-instance', () => {
+    const win = getWindow()
+    if (!win) return
+    if (win.isMinimized()) win.restore()
+    win.show()
+    win.focus()
+  })
+
+  void app.whenReady().then(initializeApp)
+}
 
 // 클립보드 매니저는 창을 닫아도 백그라운드 유지가 자연스럽지만,
 // S1~S3 단계에서는 단순화: 모든 창이 닫히면 종료(트레이는 후속 슬라이스).
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
+})
+
+app.on('before-quit', (event) => {
+  if (!store || historyFlushedForQuit) return
+  event.preventDefault()
+  void flushHistorySave(store)
+    .catch((err: unknown) => {
+      console.warn('[copy-manager] 종료 전 클립보드 히스토리 저장 실패:', err)
+    })
+    .finally(() => {
+      historyFlushedForQuit = true
+      app.quit()
+    })
 })
 
 app.on('will-quit', () => {
@@ -383,5 +454,8 @@ app.on('will-quit', () => {
     void persistWindowPosition()
   }
   unregisterHotkey()
+  clipboardWatcher?.stop()
+  clipboardWatcher = null
   if (pollTimer) clearInterval(pollTimer)
+  if (historySaveTimer) clearTimeout(historySaveTimer)
 })

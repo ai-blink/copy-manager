@@ -224,8 +224,15 @@ function render(): void {
 
 async function reload(): Promise<void> {
   const hist = await window.copyManager.getHistory()
-  items = [...hist].reverse() // 최신 먼저
+  const previousLatest = items[0]
+  const nextItems = [...hist].reverse() // 최신 먼저
+  const nextLatest = nextItems[0]
+  const latestChanged =
+    nextLatest?.id !== previousLatest?.id || nextLatest?.createdAt !== previousLatest?.createdAt
+  items = nextItems
   render()
+  // 새 캡처와 재복사 승격(D34)은 항상 맨 위에서 보이게 한다.
+  if (latestChanged) listEl.scrollTop = 0
 }
 
 // 탭 전환

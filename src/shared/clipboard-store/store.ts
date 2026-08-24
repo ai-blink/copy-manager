@@ -45,6 +45,8 @@ export class ClipboardStore {
   private maxSize: number
   private readonly filePath: string
   private readonly cipher: Cipher
+  /** 같은 파일에 대한 저장을 호출 순서대로 직렬화한다. */
+  private saveQueue: Promise<void> = Promise.resolve()
 
   constructor(opts: ClipboardStoreOptions) {
     this.filePath = opts.filePath
@@ -195,12 +197,26 @@ export class ClipboardStore {
     })
   }
 
-  /** 현재 상태를 JSON 파일로 저장(디렉토리 없으면 생성). 영속 전 cipher 로 암호화(D29). */
-  async save(): Promise<void> {
+  /**
+   * 현재 상태를 JSON 파일로 저장한다.
+   * - 호출 시점의 스냅샷을 만든 뒤 저장 큐에 넣어 겹치는 writeFile 을 막는다.
+   * - 임시 파일을 완성한 뒤 교체해 종료/오류 중 기존 파일이 잘리는 위험을 줄인다.
+   */
+  save(): Promise<void> {
     const payload: PersistShape = { version: 1, items: this.items }
     const json = JSON.stringify(payload, null, 2)
-    await fs.mkdir(dirname(this.filePath), { recursive: true })
-    await fs.writeFile(this.filePath, this.cipher.encrypt(json), 'utf8')
+    const encrypted = this.cipher.encrypt(json)
+    const tempPath = `${this.filePath}.tmp`
+    const operation = this.saveQueue.then(async () => {
+      await fs.mkdir(dirname(this.filePath), { recursive: true })
+      await fs.writeFile(tempPath, encrypted, 'utf8')
+      await fs.rename(tempPath, this.filePath)
+    })
+
+    // 한 저장이 실패해도 다음 저장은 실행되게 큐 자체는 복구하고,
+    // 현재 호출자에게는 원래 operation 을 반환해 실패를 관찰할 수 있게 한다.
+    this.saveQueue = operation.catch(() => undefined)
+    return operation
   }
 
   /** JSON 파일에서 재로딩. 파일 없으면 빈 상태로 시작. cipher 로 복호화(평문 파일은 그대로, D29). */

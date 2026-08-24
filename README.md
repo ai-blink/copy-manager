@@ -29,10 +29,10 @@ copy-manager는 넓은 카드 그리드, 유지되는 창, 키보드 탐색과 �
 
 ### 패키징 앱
 
-- 설치본: `release\copy-manager Setup 0.2.3.exe`
+- 설치본: `release\copy-manager Setup 0.2.4.exe`
 - 무설치본: `release\win-unpacked\copy-manager.exe`
 
-코드 서명이 없어 첫 실행 시 SmartScreen 경고가 나타날 수 있습니다. 최신 공개 산출물은 [GitHub Releases](https://github.com/ai-blink/copy-manager/releases/tag/v0.2.3)에서 받을 수 있습니다.
+코드 서명이 없어 첫 실행 시 SmartScreen 경고가 나타날 수 있습니다. 최신 공개 산출물은 [GitHub Releases](https://github.com/ai-blink/copy-manager/releases/tag/v0.2.4)에서 받을 수 있습니다.
 
 ### 개발 실행
 
@@ -61,7 +61,7 @@ npm run dist       # Windows NSIS 설치본과 무설치본 생성
 
 ## 현재 상태와 문서
 
-- 최신 버전: `0.2.3`
+- 최신 버전: `0.2.4`
 - S1~S6 코드 구현과 자동 검증 완료
 - GUI 수동 검증과 1주 실사용 평가는 진행 전/진행 중
 
