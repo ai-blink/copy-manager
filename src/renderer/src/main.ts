@@ -32,6 +32,9 @@ let items: ClipItem[] = [] // 최신이 앞(store 는 [old...new] 라 reverse)
 let tab = '전체'
 let filter = ''
 let sel = 0
+// 검색어를 편집하는 상태와, 검색 결과 카드 4방향을 탐색하는 상태를 구분한다.
+// DOM 포커스는 검색창에 남겨 IME·즉시 재검색을 보존하고, 방향키 해석만 전환한다.
+let isResultNavigation = false
 let keepCount = 100
 let toastTimer: number | undefined
 
@@ -197,6 +200,7 @@ function buildCard(it: ClipItem, index: number): HTMLDivElement {
 
   card.addEventListener('click', () => {
     sel = index
+    isResultNavigation = true
     selectAt(index)
     void doCopy(it)
   })
@@ -262,6 +266,7 @@ document.querySelectorAll<HTMLElement>('#tabs .tab').forEach((t) => {
     t.classList.add('on')
     tab = t.dataset['tab'] ?? '전체'
     sel = 0
+    isResultNavigation = false
     render()
   })
 })
@@ -270,11 +275,19 @@ document.querySelectorAll<HTMLElement>('#tabs .tab').forEach((t) => {
 searchEl.addEventListener('input', () => {
   filter = searchEl.value
   sel = 0
+  isResultNavigation = false
   render()
 })
+// 검색창을 직접 가리키면 다시 텍스트 편집이 우선이라는 의도다.
+searchEl.addEventListener('pointerdown', () => {
+  isResultNavigation = false
+})
 
-// D6: 키보드 그리드 탐색. 창이 포커스를 유지하므로 조작 중 blur→hide 가 발생하지 않음(안 닫힘).
+// D6/D39: 검색 입력과 카드 그리드 탐색을 한 키보드 흐름으로 연결한다.
 document.addEventListener('keydown', (e) => {
+  // 한글 등 IME 조합·후보 선택 중에는 방향키와 Enter를 운영체제 입력기에 맡긴다.
+  if (e.isComposing) return
+
   // 모달이 열려 있으면 Esc 로만 닫고 그리드 탐색은 막는다(S5)
   const openOv = document.querySelector<HTMLElement>('.overlay.show')
   if (openOv) {
@@ -283,8 +296,25 @@ document.addEventListener('keydown', (e) => {
   }
 
   const onSearch = document.activeElement === searchEl
-  // 검색창 입력 중엔 ↑↓/Enter 만 그리드로 가로챈다(좌우는 캐럿 이동 허용)
-  if (onSearch && !['ArrowDown', 'ArrowUp', 'Enter'].includes(e.key)) return
+  if (onSearch) {
+    if (!isResultNavigation) {
+      // 단일 줄 검색창의 ↑↓는 결과 탐색 진입으로만 사용한다. ←→는 언제나 캐럿 이동이다.
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        isResultNavigation = true
+      } else if (e.key !== 'Enter') {
+        return
+      }
+    } else if (e.key === 'Escape') {
+      // 검색어를 지우지 않고 편집 모드로만 되돌린다.
+      e.preventDefault()
+      isResultNavigation = false
+      return
+    } else if (!['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight', 'Enter'].includes(e.key)) {
+      // 문자·Backspace 등 편집 입력은 검색 모드로 돌려 브라우저 기본 동작을 보존한다.
+      isResultNavigation = false
+      return
+    }
+  }
 
   const vis = visible()
   if (vis.length === 0) return
@@ -796,6 +826,7 @@ function focusSearchWhenSafe(): void {
   if (document.querySelector<HTMLElement>('.overlay.show') || ctxEl.classList.contains('show')) return
   window.requestAnimationFrame(() => {
     if (document.querySelector<HTMLElement>('.overlay.show') || ctxEl.classList.contains('show')) return
+    isResultNavigation = false
     searchEl.focus({ preventScroll: true })
   })
 }
