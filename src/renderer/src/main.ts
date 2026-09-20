@@ -723,6 +723,9 @@ $<HTMLInputElement>('rebootReset').addEventListener('change', (e) => {
   void patchSettings({ rebootReset: (e.target as HTMLInputElement).checked })
 })
 
+// Alt+F4와 헤더 ✕는 창 숨김으로 통일한다. 완전 종료는 설정의 명시적 버튼만 제공한다.
+$('quitAppBtn').addEventListener('click', () => window.copyManager.quitApp())
+
 $('memReset').addEventListener('click', () => {
   askConfirm(
     '메모리 리셋',

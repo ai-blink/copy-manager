@@ -10,6 +10,8 @@ const api = {
   getHistory: (): Promise<readonly ClipItem[]> => ipcRenderer.invoke('history:get'),
   /** ✕/명시적 닫기 — 창 숨김 (D5 갱신: 창 유지 동작) */
   hideWindow: (): void => ipcRenderer.send('window:hide'),
+  /** 설정의 명시적 "앱 종료" — 종료 전 main의 히스토리 flush를 거친다. */
+  quitApp: (): void => ipcRenderer.send('app:quit'),
   /** 헤더 📌 — 항상 위(alwaysOnTop) 토글. 새 상태 반환 */
   toggleAlwaysOnTop: (): Promise<boolean> => ipcRenderer.invoke('window:toggle-aot'),
   /** 클릭=복사: 항목을 OS 클립보드에 쓰기(창 유지) */

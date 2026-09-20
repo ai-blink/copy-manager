@@ -24,6 +24,7 @@ import {
   getWindowPosition,
   setContentProtection,
   hideWindow,
+  permitWindowCloseForQuit,
   toggleAlwaysOnTop,
   restoreLastActiveWindow
 } from './window'
@@ -250,6 +251,13 @@ function registerIpc(s: ClipboardStore): void {
   // ✕ 버튼/명시적 닫기 — 창 숨김(D5 갱신: blur 자동숨김 대신 명시 닫기)
   ipcMain.on('window:hide', () => {
     hideWindow()
+  })
+
+  // Alt+F4/헤더 ✕는 창만 숨긴다. 앱 종료는 설정의 명시적 버튼만 사용한다.
+  // before-quit의 저장 flush가 끝난 뒤에도 close가 다시 막히지 않게 먼저 허용한다.
+  ipcMain.on('app:quit', () => {
+    permitWindowCloseForQuit()
+    app.quit()
   })
 
   // 헤더 📌 — 항상 위(alwaysOnTop) 토글. 새 상태를 저장해 단축키 재호출·재시작 뒤에도 유지.

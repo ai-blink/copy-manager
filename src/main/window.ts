@@ -9,6 +9,8 @@ import type { WindowPlacement, WindowPosition } from '../shared/settings'
 type NutWindow = Awaited<ReturnType<typeof getActiveWindow>>
 
 let win: BrowserWindow | null = null
+// Alt+F4 같은 일반 창 닫기는 숨김으로 처리한다. 설정의 "앱 종료" 요청 때만 true로 전환한다.
+let allowWindowCloseForQuit = false
 // 창 유지 여부(설정 keepOpen, 기본 true). 시작 시 settings 에서 주입.
 let keepOpen = true
 // 항상 위(alwaysOnTop) 토글 상태(기본 true). 시작 시 저장된 설정을 주입한다.
@@ -28,6 +30,7 @@ let lastActiveWindow: NutWindow | null = null
 
 /** 창 생성. 핀 off 상태에서 포커스를 잃으면(blur) 자동 숨김. */
 export function createWindow(): BrowserWindow {
+  allowWindowCloseForQuit = false
   win = new BrowserWindow({
     width: 760,
     height: 560,
@@ -51,6 +54,14 @@ export function createWindow(): BrowserWindow {
   // D5(갱신): keepOpen=false 일 때만 자동숨김(blur→hide). 기본(keepOpen=true)은 유지.
   win.on('blur', () => {
     if (!keepOpen) win?.hide()
+  })
+
+  // 프레임리스 앱에서 Alt+F4는 BrowserWindow의 close 이벤트로 들어온다.
+  // 실수로 감시 프로세스까지 종료하지 않도록 숨기고, 명시적 종료만 통과시킨다.
+  win.on('close', (event) => {
+    if (allowWindowCloseForQuit) return
+    event.preventDefault()
+    win?.hide()
   })
 
   // 창만 활성화하는 것과 렌더러의 검색 입력에 포커스를 주는 것은 별개다.
@@ -111,6 +122,11 @@ export function isKeepOpen(): boolean {
 /** ✕ 버튼/명시적 닫기 — 창 숨김. */
 export function hideWindow(): void {
   win?.hide()
+}
+
+/** 설정의 "앱 종료"처럼 사용자 의도가 명확한 종료만 창 close를 통과시킨다. */
+export function permitWindowCloseForQuit(): void {
+  allowWindowCloseForQuit = true
 }
 
 /** 헤더 📌 — 항상 위(alwaysOnTop) 토글. 새 상태 반환. */
