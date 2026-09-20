@@ -43,6 +43,7 @@ function $<T extends HTMLElement>(id: string): T {
 
 const listEl = $<HTMLDivElement>('list')
 const bodyAreaEl = $<HTMLDivElement>('bodyArea')
+const dragZoneEl = $<HTMLDivElement>('dragZone')
 const toastEl = $<HTMLDivElement>('toast')
 const toastPreviewEl = $<HTMLDivElement>('setToastPreview')
 const emptyEl = $<HTMLDivElement>('empty')
@@ -66,6 +67,24 @@ function updateRowH(): void {
   const cardW = (cw - gap * (cols - 1)) / cols
   // D4: 카드 4:3 균일 → 행 높이를 카드폭×3/4 로 JS 고정(겹침 방지)
   document.documentElement.style.setProperty('--rowh', `${Math.max(96, (cardW * 3) / 4)}px`)
+}
+
+/**
+ * 카드가 없는 본문 여백만 OS 창 드래그 영역으로 만든다.
+ * 목록 자체를 드래그 영역으로 만들면 카드 클릭·휠·스크롤바와 충돌하므로, 마지막 카드 아래에
+ * 실제로 보이는 빈 영역이 있을 때만 그 높이만큼의 별도 영역을 둔다.
+ */
+function updateDragZone(): void {
+  const lastCard = listEl.lastElementChild as HTMLElement | null
+  if (!lastCard) {
+    dragZoneEl.style.height = '0px'
+    return
+  }
+
+  const top = Math.max(0, lastCard.offsetTop + lastCard.offsetHeight - listEl.scrollTop)
+  const height = Math.max(0, listEl.clientHeight - top)
+  dragZoneEl.style.top = `${top}px`
+  dragZoneEl.style.height = `${height}px`
 }
 
 function selectAt(i: number): void {
@@ -220,6 +239,7 @@ function render(): void {
   })
 
   updateRowH()
+  updateDragZone()
 }
 
 async function reload(): Promise<void> {
@@ -298,7 +318,11 @@ document.addEventListener('keydown', (e) => {
   selectAt(sel)
 })
 
-window.addEventListener('resize', updateRowH)
+window.addEventListener('resize', () => {
+  updateRowH()
+  updateDragZone()
+})
+listEl.addEventListener('scroll', updateDragZone)
 
 // 새 항목 적재 시 main 이 push → 그리드 갱신(폴링 대신 이벤트 기반)
 window.copyManager.onHistoryChanged(() => {
@@ -760,6 +784,22 @@ $<HTMLInputElement>('launchAtStartup').addEventListener('change', (e) =>
 
 // 다른 경로로 설정 변경 시 동기화
 window.copyManager.onSettingsChanged((s) => applySettings(s))
+
+/**
+ * 창이 다시 활성화되면 바로 검색을 이어갈 수 있게 한다.
+ * 단, 모달·우클릭 메뉴는 현재 조작을 보존해야 하므로 검색창으로 포커스를 빼앗지 않는다.
+ */
+function focusSearchWhenSafe(): void {
+  if (document.querySelector<HTMLElement>('.overlay.show') || ctxEl.classList.contains('show')) return
+  window.requestAnimationFrame(() => {
+    if (document.querySelector<HTMLElement>('.overlay.show') || ctxEl.classList.contains('show')) return
+    searchEl.focus({ preventScroll: true })
+  })
+}
+
+window.copyManager.onWindowFocused(focusSearchWhenSafe)
+// main 이벤트가 렌더러 구독보다 먼저 발생한 초기 표시 경로의 보완책이다.
+window.addEventListener('focus', focusSearchWhenSafe)
 
 async function initSettings(): Promise<void> {
   applySettings(await window.copyManager.getSettings())

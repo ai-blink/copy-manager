@@ -160,6 +160,10 @@
         grid-auto-rows: var(--rowh);
         align-content: start;
       }
+      /* 목록·카드·스크롤은 창 이동보다 직접 조작을 우선한다. */
+      .list {
+        -webkit-app-region: no-drag;
+      }
       .list::-webkit-scrollbar {
         width: 14px;
       }
@@ -644,6 +648,8 @@
         justify-content: center;
         gap: 8px;
         color: var(--muted);
+        /* 빈 히스토리 화면은 전체가 실제 여백이므로 어디서나 창을 옮길 수 있다. */
+        -webkit-app-region: drag;
       }
       .empty.show {
         display: flex;
@@ -660,6 +666,18 @@
         font-size: 11px;
         color: var(--muted);
         flex-wrap: wrap;
+        /* 기능 버튼이 없는 하단 안내 띠는 추가 창 이동 영역이다. */
+        -webkit-app-region: drag;
+        cursor: move;
+      }
+      /* 카드가 차지하지 않는 본문 여백에만 런타임으로 높이를 맞춘다. */
+      .drag-zone {
+        position: absolute;
+        left: 0;
+        right: 14px; /* 목록 스크롤바는 항상 조작 가능하게 남긴다. */
+        height: 0;
+        -webkit-app-region: drag;
+        cursor: move;
       }
       .kbd {
         border: 1px solid var(--line);
@@ -776,6 +794,7 @@
     </div>
     <div class="body" id="bodyArea">
       <div class="list" id="list"></div>
+      <div class="drag-zone" id="dragZone" aria-hidden="true"></div>
       <div class="empty" id="empty">
         <div class="big">📋</div>
         <div id="emptyMsg">클립보드가 비어 있어요</div>

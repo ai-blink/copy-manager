@@ -39,6 +39,10 @@ const api = {
   onHistoryChanged: (cb: () => void): void => {
     ipcRenderer.on('history:changed', () => cb())
   },
+  /** 앱 창이 OS 포커스를 얻었을 때의 알림. 검색 입력 포커스 정책은 renderer가 결정한다. */
+  onWindowFocused: (cb: () => void): void => {
+    ipcRenderer.on('window:focused', () => cb())
+  },
   /** 설정 변경 알림 구독(다른 경로로 변경 시 동기화) */
   onSettingsChanged: (cb: (s: AppSettings) => void): void => {
     ipcRenderer.on('settings:changed', (_e, s: AppSettings) => cb(s))

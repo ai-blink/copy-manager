@@ -53,6 +53,12 @@ export function createWindow(): BrowserWindow {
     if (!keepOpen) win?.hide()
   })
 
+  // 창만 활성화하는 것과 렌더러의 검색 입력에 포커스를 주는 것은 별개다.
+  // 렌더러가 모달·메뉴 상태를 보고 안전할 때만 검색창으로 포커스를 되돌린다.
+  win.on('focus', () => {
+    win?.webContents.send('window:focused')
+  })
+
   // D28: 화면 캡처 방지 적용(스크린샷/녹화/화면공유에서 창 제외). 시작 시 주입된 값 반영.
   win.setContentProtection(contentProtection)
   win.webContents.setZoomFactor(uiScale)
