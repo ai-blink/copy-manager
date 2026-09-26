@@ -98,6 +98,7 @@ describe('SettingsStore (D17)', () => {
     expect(s.get().alwaysOnTop).toBe(true) // 신규 키 누락 → 기본값 true(항상 위)
     expect(s.get().contentProtection).toBe(true) // 신규 키 누락 → 기본값 true(보안 우선, D28)
     expect(s.get().appTheme).toBe('dark') // 신규 키 누락 → 기존 기본 다크 모드
+    expect(s.get().language).toBe('system') // 신규 키 누락 → 시스템 언어 자동 감지
   })
 
   it('(e-2) v1에 저장된 이전 기본값 50은 새 기본값 100으로 마이그레이션한다', async () => {
@@ -201,5 +202,25 @@ describe('앱 테마 설정', () => {
     const store = new SettingsStore(tmpFile())
     store.set({ appTheme: 'light' })
     expect(store.set({ appTheme: 'system' as never }).appTheme).toBe('light')
+  })
+})
+
+describe('언어 설정', () => {
+  it('기본값은 시스템 자동이고 저장 뒤에도 명시적 선택이 유지된다', async () => {
+    expect(DEFAULT_SETTINGS.language).toBe('system')
+    const path = tmpFile()
+    const store = new SettingsStore(path)
+    store.set({ language: 'en' })
+    await store.save()
+
+    const reloaded = new SettingsStore(path)
+    await reloaded.load()
+    expect(reloaded.get().language).toBe('en')
+  })
+
+  it('알 수 없는 언어값은 기존 값을 유지한다', () => {
+    const store = new SettingsStore(tmpFile())
+    store.set({ language: 'ko' })
+    expect(store.set({ language: 'fr' as never }).language).toBe('ko')
   })
 })

@@ -1,5 +1,6 @@
 import { promises as fs } from 'node:fs'
 import { dirname } from 'node:path'
+import type { LanguagePref } from '../i18n'
 
 // S5 — 앱 설정 저장소 (느슨 결합 — electron 무관, JSON 영속).
 // D17: 핫키·카드 수·유지 개수·리모컨(투명도·드웰·속도·모드) + 재부팅 시 기본값 리셋.
@@ -12,6 +13,9 @@ export const MAX_KEEP_COUNT = 1000
 /** 앱 전역 색상 모드. OS 설정을 따르지 않고 사용자가 명시적으로 고른 값을 저장한다. */
 export type AppTheme = 'dark' | 'light'
 export const APP_THEMES: readonly AppTheme[] = ['dark', 'light']
+
+/** UI 표시 언어. 'system'이면 OS 로케일로 자동 판정(shared/i18n resolveLang). */
+export const LANGUAGE_PREFS: readonly LanguagePref[] = ['system', 'en', 'ko']
 
 /** 복사 토스트 배색(D34). 후보 비교에서 고른 4종. */
 export type ToastTheme = 'dark' | 'accent' | 'mint' | 'black'
@@ -86,6 +90,8 @@ export interface AppSettings {
   toastPadY: number
   /** 토스트 가로 여백 px (10~28) */
   toastPadX: number
+  /** UI 표시 언어. 'system'이면 OS 로케일로 자동 판정한다(기본값). */
+  language: LanguagePref
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -114,7 +120,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
   toastOpacity: 0.31,
   toastFontSize: 13,
   toastPadY: 10,
-  toastPadX: 18
+  toastPadX: 18,
+  // 새 프로필은 OS 언어를 따른다. 명시적으로 고른 언어는 이후 그대로 유지된다.
+  language: 'system'
 }
 
 interface SettingsPersist {
@@ -146,6 +154,10 @@ function normalizeToastTheme(value: unknown, fallback: ToastTheme): ToastTheme {
 
 function normalizeAppTheme(value: unknown, fallback: AppTheme): AppTheme {
   return APP_THEMES.includes(value as AppTheme) ? (value as AppTheme) : fallback
+}
+
+function normalizeLanguage(value: unknown, fallback: LanguagePref): LanguagePref {
+  return LANGUAGE_PREFS.includes(value as LanguagePref) ? (value as LanguagePref) : fallback
 }
 
 /** 토스트 관련 값만 보정해 반환 — set()/load() 양쪽에서 같은 규칙을 쓴다. */
@@ -193,6 +205,7 @@ export class SettingsStore {
       ...patch,
       keepCount: normalizeKeepCount(patch.keepCount, this.data.keepCount),
       appTheme: normalizeAppTheme(patch.appTheme, this.data.appTheme),
+      language: normalizeLanguage(patch.language, this.data.language),
       ...normalizeToast(patch, this.data),
       windowPosition:
         patch.windowPosition === undefined
@@ -236,6 +249,7 @@ export class SettingsStore {
       ...persisted,
       keepCount,
       appTheme: normalizeAppTheme(persisted.appTheme, DEFAULT_SETTINGS.appTheme),
+      language: normalizeLanguage(persisted.language, DEFAULT_SETTINGS.language),
       ...normalizeToast(persisted, DEFAULT_SETTINGS)
     }
     if (migrateLegacyDefault) await this.save()

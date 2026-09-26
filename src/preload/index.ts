@@ -1,11 +1,20 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type { ClipItem } from '../shared/clipboard-store'
 import type { AppSettings } from '../shared/settings'
+import type { WithResolvedLanguage } from '../shared/i18n'
+
+/** main 이 로케일까지 반영해 이미 현지화한 문자열. */
+export interface AppInfo {
+  version: string
+  mode: string
+  title: string
+}
+export type ClientSettings = WithResolvedLanguage<AppSettings>
 
 // 보안: contextIsolation on 전제. 렌더러에 최소 API 표면만 노출.
 const api = {
-  /** 실행 중인 앱 버전과 실행 형태(개발/패키지) */
-  getAppInfo: (): Promise<{ version: string; mode: string }> => ipcRenderer.invoke('app:get-info'),
+  /** 실행 중인 앱 버전·실행 형태·창 제목(모두 현재 언어로 현지화됨) */
+  getAppInfo: (): Promise<AppInfo> => ipcRenderer.invoke('app:get-info'),
   /** 클립보드 히스토리 조회 */
   getHistory: (): Promise<readonly ClipItem[]> => ipcRenderer.invoke('history:get'),
   /** ✕/명시적 닫기 — 창 숨김 (D5 갱신: 창 유지 동작) */
@@ -30,12 +39,12 @@ const api = {
   /** 메모리 리셋(핀 포함 전체) — D15/D17 */
   resetMemory: (): Promise<boolean> => ipcRenderer.invoke('clip:reset'),
   /** 설정 조회 — D17 */
-  getSettings: (): Promise<AppSettings> => ipcRenderer.invoke('settings:get'),
+  getSettings: (): Promise<ClientSettings> => ipcRenderer.invoke('settings:get'),
   /** 설정 변경(부분 갱신). 갱신된 전체 설정 반환 — D17 */
-  setSettings: (patch: Partial<AppSettings>): Promise<AppSettings> =>
+  setSettings: (patch: Partial<AppSettings>): Promise<ClientSettings> =>
     ipcRenderer.invoke('settings:set', patch),
   /** 새 전역 단축키 등록을 시도한다. 실패하면 기존 단축키·설정이 그대로 반환된다. */
-  setHotkey: (hotkey: string): Promise<{ ok: boolean; settings: AppSettings }> =>
+  setHotkey: (hotkey: string): Promise<{ ok: boolean; settings: ClientSettings }> =>
     ipcRenderer.invoke('hotkey:set', hotkey),
   /** 새 항목 적재 등 히스토리 변경 알림 구독 */
   onHistoryChanged: (cb: () => void): void => {
@@ -46,8 +55,8 @@ const api = {
     ipcRenderer.on('window:focused', () => cb())
   },
   /** 설정 변경 알림 구독(다른 경로로 변경 시 동기화) */
-  onSettingsChanged: (cb: (s: AppSettings) => void): void => {
-    ipcRenderer.on('settings:changed', (_e, s: AppSettings) => cb(s))
+  onSettingsChanged: (cb: (s: ClientSettings) => void): void => {
+    ipcRenderer.on('settings:changed', (_e, s: ClientSettings) => cb(s))
   }
 }
 

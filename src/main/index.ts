@@ -13,6 +13,7 @@ import {
   type AppSettings,
   type WindowPosition
 } from '../shared/settings'
+import { resolveLang, t, type Lang, type WithResolvedLanguage } from '../shared/i18n'
 import {
   createWindow,
   getWindow,
@@ -64,16 +65,26 @@ let windowPositionTimer: ReturnType<typeof setTimeout> | null = null
 let suppressedCapture: Pick<ClipItem, 'type' | 'content'> | null = null
 let historyFlushedForQuit = false
 
-function getAppInfo(): { version: string; mode: string } {
-  return {
-    version: app.getVersion(),
-    mode: app.isPackaged ? '패키지 실행' : '개발 실행'
-  }
+/** 설정의 language 값 + OS 로케일로 현재 표시 언어를 정한다(D42 i18n). */
+function currentLang(): Lang {
+  return resolveLang(settings?.get().language ?? DEFAULT_SETTINGS.language, app.getLocale())
+}
+
+/** IPC 로 렌더러에 넘기는 설정에 resolvedLanguage(현재 표시 언어)를 붙인다. 저장 대상 아님. */
+function toClientSettings(s: AppSettings): WithResolvedLanguage<AppSettings> {
+  return { ...s, resolvedLanguage: currentLang() }
+}
+
+function getAppInfo(): { version: string; mode: string; title: string } {
+  const lang = currentLang()
+  const version = app.getVersion()
+  const mode = t(lang, app.isPackaged ? 'appMode.packaged' : 'appMode.dev')
+  const title = t(lang, 'windowTitle', { version, mode })
+  return { version, mode, title }
 }
 
 function getWindowTitle(): string {
-  const { version, mode } = getAppInfo()
-  return `copy-manager v${version} · ${mode}`
+  return getAppInfo().title
 }
 
 function delay(ms: number): Promise<void> {
@@ -85,7 +96,7 @@ function notifyRenderer(): void {
 }
 
 function notifySettings(s: AppSettings): void {
-  getWindow()?.webContents.send('settings:changed', s)
+  getWindow()?.webContents.send('settings:changed', toClientSettings(s))
 }
 
 function isSameWindowPosition(a: WindowPosition | null, b: WindowPosition): boolean {
@@ -149,6 +160,9 @@ function applySettingsSideEffects(prev: AppSettings, next: AppSettings, s: Clipb
   }
   if (next.launchAtStartup !== prev.launchAtStartup) {
     applyLaunchAtStartup(next.launchAtStartup) // D30: 자동 실행 즉시 반영
+  }
+  if (next.language !== prev.language) {
+    getWindow()?.setTitle(getWindowTitle()) // D42: 창 제목도 즉시 새 언어로 갱신
   }
 }
 
@@ -338,28 +352,25 @@ function registerIpc(s: ClipboardStore): void {
   })
 
   // S5: 설정 조회/변경 — D17
-  ipcMain.handle('settings:get', (): AppSettings => settings?.get() ?? DEFAULT_SETTINGS)
+  ipcMain.handle('settings:get', () => toClientSettings(settings?.get() ?? DEFAULT_SETTINGS))
 
   // 새 키를 먼저 등록해 보고 성공한 경우에만 기존 키·저장값을 교체한다.
-  ipcMain.handle(
-    'hotkey:set',
-    async (_event, raw: unknown): Promise<{ ok: boolean; settings: AppSettings }> => {
-      const current = settings?.get() ?? DEFAULT_SETTINGS
-      if (!settings || typeof raw !== 'string' || raw.length === 0) {
-        return { ok: false, settings: current }
-      }
-      if (!replaceHotkey(current.hotkey, raw)) {
-        return { ok: false, settings: current }
-      }
-      const next = settings.set({ hotkey: raw })
-      await settings.save()
-      notifySettings(next)
-      return { ok: true, settings: next }
+  ipcMain.handle('hotkey:set', async (_event, raw: unknown) => {
+    const current = settings?.get() ?? DEFAULT_SETTINGS
+    if (!settings || typeof raw !== 'string' || raw.length === 0) {
+      return { ok: false, settings: toClientSettings(current) }
     }
-  )
+    if (!replaceHotkey(current.hotkey, raw)) {
+      return { ok: false, settings: toClientSettings(current) }
+    }
+    const next = settings.set({ hotkey: raw })
+    await settings.save()
+    notifySettings(next)
+    return { ok: true, settings: toClientSettings(next) }
+  })
 
-  ipcMain.handle('settings:set', async (_event, raw: unknown): Promise<AppSettings> => {
-    if (!settings) return DEFAULT_SETTINGS
+  ipcMain.handle('settings:set', async (_event, raw: unknown) => {
+    if (!settings) return toClientSettings(DEFAULT_SETTINGS)
     const prev = settings.get()
     const { hotkey: _hotkey, ...patch } = (raw ?? {}) as Partial<AppSettings>
     const next = settings.set(patch)
@@ -370,7 +381,7 @@ function registerIpc(s: ClipboardStore): void {
       notifyRenderer()
     }
     notifySettings(next)
-    return next
+    return toClientSettings(next)
   })
 }
 

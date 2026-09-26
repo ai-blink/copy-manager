@@ -1,17 +1,34 @@
 import type { ClipItem, ClipType } from '../../shared/clipboard-store'
 import type { AppSettings, AppTheme, ToastTheme } from '../../shared/settings'
+import {
+  t,
+  type I18nKey,
+  type Lang,
+  type LanguagePref,
+  type WithResolvedLanguage
+} from '../../shared/i18n'
 import { mountScrollRemote } from './scroll-remote'
 
 // 렌더러(vanilla TS). mockup v4 로직을 타입 안전하게 포팅.
 // S3: 그리드 렌더 · 타입 탭 · 검색 · 키보드 탐색 · 클릭=복사 · Enter=붙여넣기.
 // S4: 스크롤 리모컨(scroll-remote.ts).
 // S5: 카드 액션 📌⋯🗑️ · 우클릭 메뉴 · 상세/확인/설정 모달 · 설정 적용.
+// D42: i18n. IPC 로 오는 설정에는 항상 현재 표시 언어(resolvedLanguage)가 붙는다.
 
-const TYPE_LABEL: Record<ClipType, string> = {
-  text: '텍스트',
-  image: '이미지',
-  link: '링크',
-  code: '코드'
+type ClientSettings = WithResolvedLanguage<AppSettings>
+
+/** 현재 표시 언어. initAppInfo/applySettings 가 채운 뒤에만 유효(초기값은 임시). */
+let lang: Lang = 'en'
+let i18nApplied = false
+
+const TYPE_LABEL_KEY: Record<ClipType, I18nKey> = {
+  text: 'type.text',
+  image: 'type.image',
+  link: 'type.link',
+  code: 'type.code'
+}
+function typeLabel(type: ClipType): string {
+  return t(lang, TYPE_LABEL_KEY[type])
 }
 
 const TOAST_MS = 900 // 복사 토스트 노출 시간
@@ -29,8 +46,9 @@ const LIGHT_TOAST_MIN_OPACITY = 0.76
 
 let cols = 3 // D4: 한 줄 카드 수(설정 모달에서 2~5 변경). 시작값 3.
 
+type TabKey = 'all' | ClipType
 let items: ClipItem[] = [] // 최신이 앞(store 는 [old...new] 라 reverse)
-let tab = '전체'
+let tab: TabKey = 'all'
 let filter = ''
 let sel = 0
 // 검색어를 편집하는 상태와, 검색 결과 카드 4방향을 탐색하는 상태를 구분한다.
@@ -59,9 +77,7 @@ const appTitleEl = $<HTMLSpanElement>('appTitle')
 
 function visible(): ClipItem[] {
   const f = filter.toLowerCase()
-  return items.filter(
-    (it) => (tab === '전체' || TYPE_LABEL[it.type] === tab) && it.content.toLowerCase().includes(f)
-  )
+  return items.filter((it) => (tab === 'all' || it.type === tab) && it.content.toLowerCase().includes(f))
 }
 
 function updateRowH(): void {
@@ -99,10 +115,10 @@ function selectAt(i: number): void {
 
 function timeAgo(ts: number): string {
   const s = Math.floor((Date.now() - ts) / 1000)
-  if (s < 60) return '방금'
-  if (s < 3600) return `${Math.floor(s / 60)}분 전`
-  if (s < 86400) return `${Math.floor(s / 3600)}시간 전`
-  return `${Math.floor(s / 86400)}일 전`
+  if (s < 60) return t(lang, 'timeAgo.justNow')
+  if (s < 3600) return t(lang, 'timeAgo.minutes', { n: Math.floor(s / 60) })
+  if (s < 86400) return t(lang, 'timeAgo.hours', { n: Math.floor(s / 3600) })
+  return t(lang, 'timeAgo.days', { n: Math.floor(s / 86400) })
 }
 
 /**
@@ -119,11 +135,11 @@ function showToast(text: string): void {
 
 /** 토스트에 보여줄 복사 내용 요약. 넘치는 부분은 CSS 3줄 클램프가 다시 접는다. */
 function copyToastText(item: ClipItem): string {
-  if (item.type === 'image') return '✓ 이미지 복사됨'
+  if (item.type === 'image') return t(lang, 'toast.imageCopied')
   const oneLine = item.content.replace(/\s+/g, ' ').trim()
   const head =
     oneLine.length > TOAST_CONTENT_MAX ? `${oneLine.slice(0, TOAST_CONTENT_MAX)}…` : oneLine
-  return `✓ 복사됨 — "${head}"`
+  return t(lang, 'toast.copied', { content: head })
 }
 
 async function doCopy(item: ClipItem): Promise<void> {
@@ -156,7 +172,7 @@ function buildCard(it: ClipItem, index: number): HTMLDivElement {
   const pinAct = document.createElement('span')
   pinAct.className = 'act pin'
   pinAct.textContent = '📌'
-  pinAct.title = it.pinned ? '핀 해제' : '핀 고정'
+  pinAct.title = it.pinned ? t(lang, 'card.unpin') : t(lang, 'card.pin')
   pinAct.addEventListener('click', (e) => {
     e.stopPropagation()
     void togglePin(it)
@@ -164,7 +180,7 @@ function buildCard(it: ClipItem, index: number): HTMLDivElement {
   const moreAct = document.createElement('span')
   moreAct.className = 'act more'
   moreAct.textContent = '⋯'
-  moreAct.title = '상세 보기'
+  moreAct.title = t(lang, 'card.detail')
   moreAct.addEventListener('click', (e) => {
     e.stopPropagation()
     openDetail(it)
@@ -172,7 +188,7 @@ function buildCard(it: ClipItem, index: number): HTMLDivElement {
   const delAct = document.createElement('span')
   delAct.className = 'act del'
   delAct.textContent = '🗑️'
-  delAct.title = '삭제'
+  delAct.title = t(lang, 'card.delete')
   delAct.addEventListener('click', (e) => {
     e.stopPropagation()
     askDelete(it)
@@ -184,7 +200,7 @@ function buildCard(it: ClipItem, index: number): HTMLDivElement {
   meta.className = 'meta'
   const typeSpan = document.createElement('span')
   typeSpan.className = 'type'
-  typeSpan.textContent = TYPE_LABEL[it.type] + (it.pinned ? ' 📌' : '')
+  typeSpan.textContent = typeLabel(it.type) + (it.pinned ? ' 📌' : '')
   const timeSpan = document.createElement('span')
   timeSpan.textContent = timeAgo(it.createdAt)
   meta.append(typeSpan, timeSpan)
@@ -236,18 +252,16 @@ function render(): void {
   const has = vis.length > 0
   emptyEl.classList.toggle('show', !has)
   if (!has) {
-    emptyMsgEl.textContent =
-      filter || tab !== '전체' ? '조건에 맞는 항목이 없어요' : '클립보드가 비어 있어요'
+    emptyMsgEl.textContent = t(lang, filter || tab !== 'all' ? 'empty.noResults' : 'empty.noHistory')
   }
-  countHintEl.textContent = `${vis.length} / ${keepCount}개`
-  countHintEl.title = '현재 검색 결과 / 최대 보유 개수'
-  stateEl.textContent = `총 ${items.length}개`
+  countHintEl.textContent = t(lang, 'countFormat.shown', { shown: vis.length, max: keepCount })
+  countHintEl.title = t(lang, 'search.countHint')
+  stateEl.textContent = t(lang, 'state.total', { n: items.length })
 
-  document.querySelectorAll<HTMLElement>('#tabs .tab').forEach((t) => {
-    const name = t.dataset['tab'] ?? ''
-    const n =
-      name === '전체' ? items.length : items.filter((it) => TYPE_LABEL[it.type] === name).length
-    const cnt = t.querySelector('.cnt')
+  document.querySelectorAll<HTMLElement>('#tabs .tab').forEach((el) => {
+    const key = (el.dataset['tab'] ?? 'all') as TabKey
+    const n = key === 'all' ? items.length : items.filter((it) => it.type === key).length
+    const cnt = el.querySelector('.cnt')
     if (cnt) cnt.textContent = n ? String(n) : ''
   })
 
@@ -269,11 +283,11 @@ async function reload(): Promise<void> {
 }
 
 // 탭 전환
-document.querySelectorAll<HTMLElement>('#tabs .tab').forEach((t) => {
-  t.addEventListener('click', () => {
+document.querySelectorAll<HTMLElement>('#tabs .tab').forEach((el) => {
+  el.addEventListener('click', () => {
     document.querySelectorAll('#tabs .tab').forEach((x) => x.classList.remove('on'))
-    t.classList.add('on')
-    tab = t.dataset['tab'] ?? '전체'
+    el.classList.add('on')
+    tab = (el.dataset['tab'] as TabKey | undefined) ?? 'all'
     sel = 0
     isResultNavigation = false
     render()
@@ -372,7 +386,13 @@ window.copyManager.onHistoryChanged(() => {
 const remote = mountScrollRemote({
   target: listEl,
   container: bodyAreaEl,
-  onSettings: () => openSettings()
+  onSettings: () => openSettings(),
+  labels: {
+    drag: t(lang, 'remote.drag'),
+    settings: t(lang, 'remote.settings'),
+    dwell: t(lang, 'settingsModal.remote.modeDwell'),
+    click: t(lang, 'settingsModal.remote.modeClick')
+  }
 })
 
 // ===== S5: 모달 · 우클릭 메뉴 · 카드 액션 · 설정 =====
@@ -443,9 +463,14 @@ async function togglePin(it: ClipItem): Promise<void> {
   await window.copyManager.pinItem(it.id, !it.pinned)
 }
 function askDelete(it: ClipItem): void {
-  askConfirm('항목 삭제', '이 항목을 삭제할까요?', '삭제', () => {
-    void window.copyManager.deleteItem(it.id)
-  })
+  askConfirm(
+    t(lang, 'confirmDelete.title'),
+    t(lang, 'confirmDelete.msg'),
+    t(lang, 'confirmDelete.yes'),
+    () => {
+      void window.copyManager.deleteItem(it.id)
+    }
+  )
 }
 
 // 상세 모달 (D14)
@@ -453,7 +478,7 @@ let detailItem: ClipItem | null = null
 function openDetail(it: ClipItem): void {
   detailItem = it
   $('detailType').textContent =
-    `${TYPE_LABEL[it.type]} · ${timeAgo(it.createdAt)}${it.pinned ? ' · 📌' : ''}`
+    `${typeLabel(it.type)} · ${timeAgo(it.createdAt)}${it.pinned ? ' · 📌' : ''}`
   const wrap = $<HTMLDivElement>('detailWrap')
   wrap.innerHTML = ''
   if (it.type === 'image') {
@@ -488,7 +513,7 @@ const ctxEl = $<HTMLDivElement>('ctx')
 let ctxItem: ClipItem | null = null
 function openCtx(x: number, y: number, it: ClipItem): void {
   ctxItem = it
-  $('ctxPin').textContent = it.pinned ? '핀 해제' : '핀 고정'
+  $('ctxPin').textContent = it.pinned ? t(lang, 'card.unpin') : t(lang, 'card.pin')
   ctxEl.style.left = `${Math.min(x, window.innerWidth - 190)}px`
   ctxEl.style.top = `${Math.min(y, window.innerHeight - 200)}px`
   ctxEl.classList.add('show')
@@ -550,10 +575,7 @@ async function commitHotkey(): Promise<void> {
   const result = await window.copyManager.setHotkey(hotkey)
   applySettings(result.settings)
   if (!result.ok) {
-    showNotice(
-      '단축키를 사용할 수 없음',
-      '이 단축키는 Windows 또는 다른 앱에서 이미 사용 중입니다. 기존 단축키는 그대로 유지됩니다.'
-    )
+    showNotice(t(lang, 'hotkeyConflict.title'), t(lang, 'hotkeyConflict.msg'))
   }
 }
 
@@ -572,6 +594,9 @@ function syncSettingsControls(s: AppSettings): void {
   document
     .querySelectorAll<HTMLElement>('#setAppThemeRow .chip')
     .forEach((c) => c.classList.toggle('on', c.dataset['appTheme'] === s.appTheme))
+  document
+    .querySelectorAll<HTMLElement>('#setLanguageRow .chip')
+    .forEach((c) => c.classList.toggle('on', c.dataset['language'] === s.language))
   $<HTMLInputElement>('setKeep').value = String(s.keepCount)
   document
     .querySelectorAll<HTMLElement>('#setKeepPresets .chip')
@@ -622,7 +647,37 @@ function applyToastStyle(s: AppSettings): void {
   }
 }
 
-function applySettings(s: AppSettings): void {
+/** 정적 HTML 문자열(data-i18n*)과, i18n 사전을 직접 쓰는 동적 조각을 현재 언어로 채운다. */
+function applyI18n(): void {
+  document.documentElement.lang = lang
+  document.querySelectorAll<HTMLElement>('[data-i18n]').forEach((el) => {
+    const key = el.dataset['i18n'] as I18nKey | undefined
+    if (key) el.textContent = t(lang, key)
+  })
+  document.querySelectorAll<HTMLElement>('[data-i18n-title]').forEach((el) => {
+    const key = el.dataset['i18nTitle'] as I18nKey | undefined
+    if (key) el.title = t(lang, key)
+  })
+  document.querySelectorAll<HTMLInputElement>('[data-i18n-placeholder]').forEach((el) => {
+    const key = el.dataset['i18nPlaceholder'] as I18nKey | undefined
+    if (key) el.placeholder = t(lang, key)
+  })
+  document.querySelectorAll<HTMLElement>('[data-i18n-aria-label]').forEach((el) => {
+    const key = el.dataset['i18nAriaLabel'] as I18nKey | undefined
+    if (key) el.setAttribute('aria-label', t(lang, key))
+  })
+  remote.setLabels({
+    drag: t(lang, 'remote.drag'),
+    settings: t(lang, 'remote.settings'),
+    dwell: t(lang, 'settingsModal.remote.modeDwell'),
+    click: t(lang, 'settingsModal.remote.modeClick')
+  })
+  render() // 카드 타입 라벨·시간 표시 등 동적 텍스트 재계산
+}
+
+function applySettings(s: ClientSettings): void {
+  const langChanged = !i18nApplied || s.resolvedLanguage !== lang
+  lang = s.resolvedLanguage
   cols = s.cols
   keepCount = s.keepCount
   document.documentElement.dataset['appTheme'] = s.appTheme
@@ -635,7 +690,9 @@ function applySettings(s: AppSettings): void {
   remote.setMode(s.remoteMode)
   remote.setVisible(s.remoteEnabled)
   syncSettingsControls(s)
-  render()
+  applyI18n()
+  i18nApplied = true
+  if (langChanged) void initAppInfo() // 창 제목 등 main 이 미리 현지화한 문자열 새로고침
   updateRowH()
 }
 
@@ -665,6 +722,15 @@ document.querySelectorAll<HTMLElement>('#setAppThemeRow .chip').forEach((c) =>
   c.addEventListener('click', () => {
     const appTheme = c.dataset['appTheme'] as AppTheme | undefined
     if (appTheme === 'dark' || appTheme === 'light') void patchSettings({ appTheme })
+  })
+)
+
+document.querySelectorAll<HTMLElement>('#setLanguageRow .chip').forEach((c) =>
+  c.addEventListener('click', () => {
+    const language = c.dataset['language'] as LanguagePref | undefined
+    if (language === 'system' || language === 'en' || language === 'ko') {
+      void patchSettings({ language })
+    }
   })
 )
 
@@ -790,9 +856,9 @@ $('quitAppBtn').addEventListener('click', () => window.copyManager.quitApp())
 
 $('memReset').addEventListener('click', () => {
   askConfirm(
-    '메모리 리셋',
-    '모든 클립보드 기록을 삭제할까요? (핀 포함, 되돌릴 수 없음)',
-    '전체 삭제',
+    t(lang, 'confirmMemReset.title'),
+    t(lang, 'confirmMemReset.msg'),
+    t(lang, 'confirmMemReset.yes'),
     () => void window.copyManager.resetMemory()
   )
 })
@@ -801,18 +867,22 @@ $('noticeOk').addEventListener('click', () => closeOverlay($('noticeOverlay')))
 // 헤더 버튼
 $('setBtn').addEventListener('click', openSettings)
 $('clearBtn').addEventListener('click', () => {
-  askConfirm('모두 지우기', '핀을 제외한 모든 기록을 지울까요?', '모두 지우기', () =>
-    void window.copyManager.clearUnpinned()
+  askConfirm(
+    t(lang, 'confirmClearAll.title'),
+    t(lang, 'confirmClearAll.msg'),
+    t(lang, 'confirmClearAll.yes'),
+    () => void window.copyManager.clearUnpinned()
   )
 })
 function askRemoveDuplicates(): void {
   askConfirm(
-    '중복 기록 제거',
-    '같은 내용·유형의 비핀 기록은 최신 1개만 남기고 지울까요? 핀 기록은 유지됩니다.',
-    '중복 제거',
+    t(lang, 'confirmDedupe.title'),
+    t(lang, 'confirmDedupe.msg'),
+    t(lang, 'confirmDedupe.yes'),
     () => {
       void window.copyManager.removeDuplicates().then((removed) => {
-        stateEl.textContent = removed > 0 ? `중복 ${removed}개 제거됨` : '중복 기록 없음'
+        stateEl.textContent =
+          removed > 0 ? t(lang, 'state.dedupedRemoved', { n: removed }) : t(lang, 'state.dedupedNone')
       })
     }
   )
@@ -825,7 +895,7 @@ $('closeBtn').addEventListener('click', () => window.copyManager.hideWindow())
 const winPinBtn = $('winPinBtn')
 function setAotBtn(on: boolean): void {
   winPinBtn.classList.toggle('on', on)
-  winPinBtn.title = on ? '항상 위 켜짐 — 클릭하면 해제' : '항상 위 꺼짐 — 클릭하면 켜기'
+  winPinBtn.title = on ? t(lang, 'header.pinOn') : t(lang, 'header.pinOff')
 }
 winPinBtn.addEventListener('click', () => {
   void window.copyManager.toggleAlwaysOnTop().then(setAotBtn)
@@ -872,8 +942,7 @@ async function initSettings(): Promise<void> {
 }
 
 async function initAppInfo(): Promise<void> {
-  const { version, mode } = await window.copyManager.getAppInfo()
-  const title = `클립보드 v${version} · ${mode}`
+  const { title } = await window.copyManager.getAppInfo()
   appTitleEl.textContent = title
   document.title = title
 }

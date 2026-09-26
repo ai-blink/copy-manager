@@ -6,6 +6,17 @@
 
 export type RemoteMode = 'dwell' | 'click'
 
+/**
+ * 표시 문구는 이 모듈이 아니라 호출자가 넘긴다(느슨 결합 — i18n 사전에 의존하지 않음).
+ * 언어가 바뀌면 setLabels 로 갱신한다(D42 i18n).
+ */
+export interface ScrollRemoteLabels {
+  drag: string
+  settings: string
+  dwell: string
+  click: string
+}
+
 export interface ScrollRemoteOptions {
   /** 스크롤시킬 대상(overflow 스크롤 컨테이너) */
   target: HTMLElement
@@ -21,6 +32,8 @@ export interface ScrollRemoteOptions {
   opacity?: number
   /** ⚙ 클릭 콜백 — 설정 모달은 S5에서 연결 */
   onSettings?: () => void
+  /** 그립·설정 버튼 title, 모드 라벨 표시 문구 */
+  labels: ScrollRemoteLabels
 }
 
 export interface ScrollRemoteHandle {
@@ -32,6 +45,8 @@ export interface ScrollRemoteHandle {
   setOpacity(op: number): void
   /** 리모컨 표시/숨김. 숨길 때 진행 중인 드웰·스크롤을 즉시 정지 (D31) */
   setVisible(on: boolean): void
+  /** 언어 변경 시 그립·설정 버튼 title, 모드 라벨을 갱신한다(D42 i18n). */
+  setLabels(labels: ScrollRemoteLabels): void
   destroy(): void
 }
 
@@ -45,6 +60,7 @@ export function mountScrollRemote(opts: ScrollRemoteOptions): ScrollRemoteHandle
   let mode: RemoteMode = opts.mode ?? DEFAULT_MODE
   let dwellMs = opts.dwellMs ?? DEFAULT_DWELL_MS
   let speed = opts.speed ?? DEFAULT_SPEED
+  let labels = opts.labels
 
   const stoppers: Array<() => void> = []
 
@@ -57,7 +73,7 @@ export function mountScrollRemote(opts: ScrollRemoteOptions): ScrollRemoteHandle
   const grip = document.createElement('div')
   grip.className = 'grip'
   grip.textContent = '⋮⋮'
-  grip.title = '드래그로 이동'
+  grip.title = labels.drag
 
   const upBtn = makeButton(-1, '▲')
   const downBtn = makeButton(1, '▼')
@@ -65,7 +81,7 @@ export function mountScrollRemote(opts: ScrollRemoteOptions): ScrollRemoteHandle
   const setBtn = document.createElement('div')
   setBtn.className = 'r-set'
   setBtn.textContent = '⚙'
-  setBtn.title = '리모컨 설정'
+  setBtn.title = labels.settings
   setBtn.addEventListener('click', () => opts.onSettings?.())
 
   const modeLabel = document.createElement('div')
@@ -165,7 +181,7 @@ export function mountScrollRemote(opts: ScrollRemoteOptions): ScrollRemoteHandle
   })
 
   function labelFor(m: RemoteMode): string {
-    return m === 'dwell' ? '드웰' : '클릭'
+    return m === 'dwell' ? labels.dwell : labels.click
   }
 
   return {
@@ -186,6 +202,12 @@ export function mountScrollRemote(opts: ScrollRemoteOptions): ScrollRemoteHandle
     setVisible(on: boolean): void {
       if (!on) stoppers.forEach((fn) => fn())
       remote.style.display = on ? '' : 'none'
+    },
+    setLabels(next: ScrollRemoteLabels): void {
+      labels = next
+      grip.title = labels.drag
+      setBtn.title = labels.settings
+      modeLabel.textContent = labelFor(mode)
     },
     destroy(): void {
       stoppers.forEach((fn) => fn())

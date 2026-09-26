@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ko">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -7,7 +7,7 @@
       http-equiv="Content-Security-Policy"
       content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:"
     />
-    <title>클립보드</title>
+    <title>Clipboard</title>
     <style>
       :root {
         color-scheme: dark;
@@ -805,26 +805,26 @@
   </head>
   <body>
     <div class="head">
-      <span class="title" id="appTitle">클립보드</span>
+      <span class="title" id="appTitle" data-i18n="appName">Clipboard</span>
       <span class="state" id="state"></span>
       <span class="hbtns">
-        <span class="hbtn" id="winPinBtn" title="항상 위 토글">📌</span>
-        <span class="hbtn" id="dedupeBtn" title="중복 기록 제거(핀 유지)">♻</span>
-        <span class="hbtn" id="clearBtn" title="모두 지우기(핀 제외)">🧹</span>
-        <span class="hbtn" id="setBtn" title="설정">⚙</span>
-        <span class="hbtn" id="closeBtn" title="닫기 (Ctrl+Alt+V 다시 눌러도 닫힘)">✕</span>
+        <span class="hbtn" id="winPinBtn" data-i18n-title="header.pinOff">📌</span>
+        <span class="hbtn" id="dedupeBtn" data-i18n-title="header.dedupe">♻</span>
+        <span class="hbtn" id="clearBtn" data-i18n-title="header.clearAll">🧹</span>
+        <span class="hbtn" id="setBtn" data-i18n-title="header.settings">⚙</span>
+        <span class="hbtn" id="closeBtn" data-i18n-title="header.close">✕</span>
       </span>
     </div>
     <div class="tabs" id="tabs">
-      <span class="tab on" data-tab="전체">전체<span class="cnt"></span></span>
-      <span class="tab" data-tab="텍스트">텍스트<span class="cnt"></span></span>
-      <span class="tab" data-tab="이미지">이미지<span class="cnt"></span></span>
-      <span class="tab" data-tab="링크">링크<span class="cnt"></span></span>
-      <span class="tab" data-tab="코드">코드<span class="cnt"></span></span>
+      <span class="tab on" data-tab="all"><span data-i18n="tabs.all">All</span><span class="cnt"></span></span>
+      <span class="tab" data-tab="text"><span data-i18n="type.text">Text</span><span class="cnt"></span></span>
+      <span class="tab" data-tab="image"><span data-i18n="type.image">Image</span><span class="cnt"></span></span>
+      <span class="tab" data-tab="link"><span data-i18n="type.link">Link</span><span class="cnt"></span></span>
+      <span class="tab" data-tab="code"><span data-i18n="type.code">Code</span><span class="cnt"></span></span>
     </div>
     <div class="search">
       <span>🔍</span>
-      <input id="search" placeholder="검색하거나 입력해서 필터…" />
+      <input id="search" data-i18n-placeholder="search.placeholder" placeholder="Search or type to filter…" />
       <span class="hint" id="countHint"></span>
     </div>
     <div class="body" id="bodyArea">
@@ -832,39 +832,39 @@
       <div class="drag-zone" id="dragZone" aria-hidden="true"></div>
       <div class="empty" id="empty">
         <div class="big">📋</div>
-        <div id="emptyMsg">클립보드가 비어 있어요</div>
+        <div id="emptyMsg" data-i18n="empty.noHistory">Clipboard is empty</div>
       </div>
       <div class="toast toast-accent" id="toast"></div>
     </div>
     <div class="foot">
-      <span><span class="kbd">←→↑↓</span> 탐색</span>
-      <span><span class="kbd">클릭</span> 복사</span>
-      <span><span class="kbd">Enter</span> 붙여넣기</span>
+      <span><span class="kbd">←→↑↓</span> <span data-i18n="foot.navigate">Navigate</span></span>
+      <span><span class="kbd" data-i18n="foot.clickKey">Click</span> <span data-i18n="foot.copy">Copy</span></span>
+      <span><span class="kbd">Enter</span> <span data-i18n="foot.paste">Paste</span></span>
     </div>
 
     <!-- S5 우클릭 메뉴 (D13) -->
     <div class="ctxmenu" id="ctx">
-      <div class="mi" data-act="copy">⧉ 복사</div>
-      <div class="mi" data-act="paste">📋 붙여넣기</div>
-      <div class="mi" data-act="detail">⋯ 상세 보기</div>
-      <div class="mi" data-act="pin">📌 <span id="ctxPin">핀 고정</span></div>
+      <div class="mi" data-act="copy">⧉ <span data-i18n="ctxMenu.copy">Copy</span></div>
+      <div class="mi" data-act="paste">📋 <span data-i18n="ctxMenu.paste">Paste</span></div>
+      <div class="mi" data-act="detail">⋯ <span data-i18n="ctxMenu.detail">View details</span></div>
+      <div class="mi" data-act="pin">📌 <span id="ctxPin">Pin</span></div>
       <div class="sep"></div>
-      <div class="mi danger" data-act="del">🗑️ 삭제</div>
+      <div class="mi danger" data-act="del">🗑️ <span data-i18n="ctxMenu.delete">Delete</span></div>
     </div>
 
     <!-- S5 상세 보기 모달 (D14) -->
     <div class="overlay" id="detailOverlay">
       <div class="modal">
-        <div class="modal-head"><h3>상세 보기</h3><span class="x" data-close>✕</span></div>
+        <div class="modal-head"><h3 data-i18n="detail.title">Details</h3><span class="x" data-close>✕</span></div>
         <div class="modal-body">
           <div class="detail-type" id="detailType"></div>
           <div id="detailWrap"></div>
         </div>
         <div class="modal-foot">
-          <button class="btn" data-close>닫기</button>
-          <button class="btn" id="detailPin">📌 핀</button>
-          <button class="btn danger" id="detailDel">🗑️ 삭제</button>
-          <button class="btn primary" id="detailPaste">붙여넣기</button>
+          <button class="btn" data-close data-i18n="detail.close">Close</button>
+          <button class="btn" id="detailPin" data-i18n="detail.pin">📌 Pin</button>
+          <button class="btn danger" id="detailDel" data-i18n="detail.delete">🗑️ Delete</button>
+          <button class="btn primary" id="detailPaste" data-i18n="detail.paste">Paste</button>
         </div>
       </div>
     </div>
@@ -872,37 +872,37 @@
     <!-- S5 설정 모달 (D17) -->
     <div class="overlay" id="setOverlay">
       <div class="modal settings-modal">
-        <div class="modal-head"><h3>설정</h3><span class="x" data-close>✕</span></div>
+        <div class="modal-head"><h3 data-i18n="settingsModal.title">Settings</h3><span class="x" data-close>✕</span></div>
         <div class="modal-body">
           <div class="settings-layout">
-            <nav class="settings-sidebar" aria-label="설정 분류">
-              <button class="settings-navtab on" type="button" data-settings-tab="general" aria-selected="true">일반</button>
-              <button class="settings-navtab" type="button" data-settings-tab="display" aria-selected="false">창·표시</button>
-              <button class="settings-navtab" type="button" data-settings-tab="history" aria-selected="false">히스토리</button>
-              <button class="settings-navtab" type="button" data-settings-tab="remote" aria-selected="false">리모컨</button>
-              <button class="settings-navtab" type="button" data-settings-tab="security" aria-selected="false">보안</button>
+            <nav class="settings-sidebar" data-i18n-aria-label="settingsModal.sidebarLabel" aria-label="Settings categories">
+              <button class="settings-navtab on" type="button" data-settings-tab="general" aria-selected="true" data-i18n="settingsModal.tabs.general">General</button>
+              <button class="settings-navtab" type="button" data-settings-tab="display" aria-selected="false" data-i18n="settingsModal.tabs.display">Window/Display</button>
+              <button class="settings-navtab" type="button" data-settings-tab="history" aria-selected="false" data-i18n="settingsModal.tabs.history">History</button>
+              <button class="settings-navtab" type="button" data-settings-tab="remote" aria-selected="false" data-i18n="settingsModal.tabs.remote">Remote</button>
+              <button class="settings-navtab" type="button" data-settings-tab="security" aria-selected="false" data-i18n="settingsModal.tabs.security">Security</button>
             </nav>
             <div class="settings-content">
               <section class="settings-panel show" data-settings-panel="general">
                 <div class="set-grp">
-                  <div class="lbl">전역 단축키 (창 열기)</div>
+                  <div class="lbl" data-i18n="settingsModal.general.hotkeyLabel">Global hotkey (open window)</div>
                   <div class="hotkey-selectors">
-                    <label>첫 보조키
+                    <label><span data-i18n="settingsModal.general.hotkeyMod1">First modifier</span>
                       <select id="setHotkeyMod1">
                         <option value="CommandOrControl">Ctrl</option>
                         <option value="Alt">Alt</option>
                         <option value="Shift">Shift</option>
                       </select>
                     </label>
-                    <label>두 번째 보조키
+                    <label><span data-i18n="settingsModal.general.hotkeyMod2">Second modifier</span>
                       <select id="setHotkeyMod2">
-                        <option value="">없음</option>
+                        <option value="" data-i18n="settingsModal.general.hotkeyNone">None</option>
                         <option value="CommandOrControl">Ctrl</option>
                         <option value="Alt" selected>Alt</option>
                         <option value="Shift">Shift</option>
                       </select>
                     </label>
-                    <label>실행 키
+                    <label><span data-i18n="settingsModal.general.hotkeyKey">Key</span>
                       <select id="setHotkeyKey">
                         <option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="D">D</option><option value="E">E</option><option value="F">F</option><option value="G">G</option><option value="H">H</option><option value="I">I</option><option value="J">J</option><option value="K">K</option><option value="L">L</option><option value="M">M</option><option value="N">N</option><option value="O">O</option><option value="P">P</option><option value="Q">Q</option><option value="R">R</option><option value="S">S</option><option value="T">T</option><option value="U">U</option><option value="V" selected>V</option><option value="W">W</option><option value="X">X</option><option value="Y">Y</option><option value="Z">Z</option>
                         <option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option>
@@ -911,129 +911,136 @@
                     </label>
                   </div>
                   <div class="note" style="margin-top: 6px">
-                    선택한 단축키: <b id="setHotkeyPreview">Ctrl + Alt + V</b>. win+v는 OS 예약이라 자체 핫키를 씁니다.
+                    <span data-i18n="settingsModal.general.hotkeyNotePrefix">Selected hotkey:</span> <b id="setHotkeyPreview">Ctrl + Alt + V</b><span data-i18n="settingsModal.general.hotkeyNoteSuffix">. win+v is reserved by the OS, so the app uses its own hotkey.</span>
                   </div>
                 </div>
                 <div class="set-grp">
-                  <label class="checkrow"><input type="checkbox" id="keepOpen" /> 창 유지 (포커스를 잃어도 닫지 않음)</label>
-                  <div class="note" style="margin-top: 8px">체크 해제하면 다른 곳을 클릭할 때 자동으로 닫힙니다(자동숨김). 닫기는 헤더 ✕ 버튼으로 합니다.</div>
+                  <div class="lbl" data-i18n="settingsModal.general.languageLabel">Language</div>
+                  <div class="row" id="setLanguageRow">
+                    <span class="chip" data-language="system" data-i18n="settingsModal.general.languageSystem">Match system</span><span class="chip" data-language="ko" data-i18n="settingsModal.general.languageKo">한국어</span><span class="chip" data-language="en" data-i18n="settingsModal.general.languageEn">English</span>
+                  </div>
+                  <div class="note" style="margin-top: 6px" data-i18n="settingsModal.general.languageNote">"Match system" follows your OS display language.</div>
                 </div>
                 <div class="set-grp">
-                  <label class="checkrow"><input type="checkbox" id="launchAtStartup" /> 윈도우 시작 시 자동 실행</label>
-                  <div class="note" style="margin-top: 8px">켜면 Windows 로그인 시 이 앱이 자동으로 실행됩니다. 패키징된 앱에서만 적용됩니다.</div>
+                  <label class="checkrow"><input type="checkbox" id="keepOpen" /> <span data-i18n="settingsModal.general.keepOpen">Keep window open (don't close on focus loss)</span></label>
+                  <div class="note" style="margin-top: 8px" data-i18n="settingsModal.general.keepOpenNote">Uncheck to auto-close when clicking elsewhere (auto-hide). Use the header ✕ button to close explicitly.</div>
                 </div>
                 <div class="set-grp">
-                  <label class="checkrow"><input type="checkbox" id="rebootReset" /> 재부팅(앱 재시작) 시 설정을 기본값으로 리셋</label>
-                  <div class="note" style="margin-top: 8px">체크하면 실험적으로 바꾼 값도 다음 실행 때 기본값으로 돌아옵니다.</div>
+                  <label class="checkrow"><input type="checkbox" id="launchAtStartup" /> <span data-i18n="settingsModal.general.launchAtStartup">Launch at Windows startup</span></label>
+                  <div class="note" style="margin-top: 8px" data-i18n="settingsModal.general.launchAtStartupNote">When on, the app launches automatically at Windows login. Only applies to the packaged app.</div>
                 </div>
                 <div class="set-grp">
-                  <div class="lbl">앱 종료</div>
-                  <button class="btn danger" id="quitAppBtn">앱 종료</button>
-                  <div class="note" style="margin-top: 8px">Alt+F4와 헤더 ✕는 창만 숨깁니다. 클립보드 감시를 완전히 끝낼 때만 사용하세요.</div>
+                  <label class="checkrow"><input type="checkbox" id="rebootReset" /> <span data-i18n="settingsModal.general.rebootReset">Reset settings to defaults on restart</span></label>
+                  <div class="note" style="margin-top: 8px" data-i18n="settingsModal.general.rebootResetNote">When checked, experimental changes revert to defaults on the next launch.</div>
+                </div>
+                <div class="set-grp">
+                  <div class="lbl" data-i18n="settingsModal.general.quitLabel">Quit app</div>
+                  <button class="btn danger" id="quitAppBtn" data-i18n="settingsModal.general.quitBtn">Quit app</button>
+                  <div class="note" style="margin-top: 8px" data-i18n="settingsModal.general.quitNote">Alt+F4 and the header ✕ only hide the window. Use this only to fully stop clipboard monitoring.</div>
                 </div>
               </section>
               <section class="settings-panel" data-settings-panel="display">
                 <div class="set-grp">
-                  <div class="lbl">앱 테마</div>
+                  <div class="lbl" data-i18n="settingsModal.display.themeLabel">App theme</div>
                   <div class="row" id="setAppThemeRow">
-                    <span class="chip" data-app-theme="dark">다크 모드</span><span class="chip" data-app-theme="light">라이트 모드</span>
+                    <span class="chip" data-app-theme="dark" data-i18n="settingsModal.display.themeDark">Dark mode</span><span class="chip" data-app-theme="light" data-i18n="settingsModal.display.themeLight">Light mode</span>
                   </div>
-                  <div class="note" style="margin-top: 6px">선택한 모드는 즉시 전체 화면과 복사 알림에 적용됩니다.</div>
+                  <div class="note" style="margin-top: 6px" data-i18n="settingsModal.display.themeNote">The selected mode applies immediately to the whole app and the copy toast.</div>
                 </div>
                 <div class="set-grp">
-                  <div class="lbl">한 줄 카드 수 <span class="v" id="setColsV">3</span></div>
+                  <div class="lbl"><span data-i18n="settingsModal.display.colsLabel">Cards per row</span> <span class="v" id="setColsV">3</span></div>
                   <div class="row" id="setColsRow">
                     <span class="chip" data-cols="2">2</span><span class="chip" data-cols="3">3</span><span class="chip" data-cols="4">4</span><span class="chip" data-cols="5">5</span><span class="chip" data-cols="6">6</span><span class="chip" data-cols="7">7</span><span class="chip" data-cols="8">8</span>
                   </div>
                 </div>
                 <div class="set-grp">
-                  <div class="lbl">전체 UI 배율 <span class="v" id="setUiScaleV">100%</span></div>
+                  <div class="lbl"><span data-i18n="settingsModal.display.uiScaleLabel">Overall UI scale</span> <span class="v" id="setUiScaleV">100%</span></div>
                   <input type="range" id="setUiScale" min="75" max="150" step="5" value="100" />
-                  <div class="note" style="margin-top: 6px">창 크기는 그대로 두고 앱 전체를 75~150%로 확대·축소합니다.</div>
+                  <div class="note" style="margin-top: 6px" data-i18n="settingsModal.display.uiScaleNote">Scales the whole app 75–150% without changing the window size.</div>
                 </div>
                 <div class="set-grp">
-                  <div class="lbl">창 배치</div>
+                  <div class="lbl" data-i18n="settingsModal.display.placementLabel">Window placement</div>
                   <div class="placement-grid" id="setPlacementGrid">
-                    <span class="chip" data-placement="top-left">↖ 좌상</span><span class="chip" data-placement="top">↑ 상단</span><span class="chip" data-placement="top-right">↗ 우상</span><span class="chip" data-placement="left">← 좌</span><span class="chip" data-placement="center">• 중앙</span><span class="chip" data-placement="right">→ 우</span><span class="chip" data-placement="bottom-left">↙ 좌하</span><span class="chip" data-placement="bottom">↓ 하단</span><span class="chip" data-placement="bottom-right">↘ 우하</span>
+                    <span class="chip" data-placement="top-left">↖ <span data-i18n="settingsModal.display.placement.topLeft">Top-left</span></span><span class="chip" data-placement="top">↑ <span data-i18n="settingsModal.display.placement.top">Top</span></span><span class="chip" data-placement="top-right">↗ <span data-i18n="settingsModal.display.placement.topRight">Top-right</span></span><span class="chip" data-placement="left">← <span data-i18n="settingsModal.display.placement.left">Left</span></span><span class="chip" data-placement="center">• <span data-i18n="settingsModal.display.placement.center">Center</span></span><span class="chip" data-placement="right">→ <span data-i18n="settingsModal.display.placement.right">Right</span></span><span class="chip" data-placement="bottom-left">↙ <span data-i18n="settingsModal.display.placement.bottomLeft">Bottom-left</span></span><span class="chip" data-placement="bottom">↓ <span data-i18n="settingsModal.display.placement.bottom">Bottom</span></span><span class="chip" data-placement="bottom-right">↘ <span data-i18n="settingsModal.display.placement.bottomRight">Bottom-right</span></span>
                   </div>
-                  <div class="note" style="margin-top: 6px">현재 창이 있는 모니터의 작업 영역 안에서 즉시 이동합니다.</div>
+                  <div class="note" style="margin-top: 6px" data-i18n="settingsModal.display.placementNote">Moves the window immediately within the current monitor's work area.</div>
                 </div>
                 <div class="set-grp">
-                  <div class="lbl">복사 알림 배색</div>
+                  <div class="lbl" data-i18n="settingsModal.display.toastThemeLabel">Copy toast color</div>
                   <div class="row" id="setToastThemeRow">
-                    <span class="chip" data-toast-theme="dark">다크</span><span class="chip" data-toast-theme="accent">보라</span><span class="chip" data-toast-theme="mint">민트</span><span class="chip" data-toast-theme="black">딥블랙</span>
+                    <span class="chip" data-toast-theme="dark" data-i18n="settingsModal.display.toastTheme.dark">Dark</span><span class="chip" data-toast-theme="accent" data-i18n="settingsModal.display.toastTheme.accent">Purple</span><span class="chip" data-toast-theme="mint" data-i18n="settingsModal.display.toastTheme.mint">Mint</span><span class="chip" data-toast-theme="black" data-i18n="settingsModal.display.toastTheme.black">Deep black</span>
                   </div>
-                  <div class="lbl" style="margin-top: 12px">불투명도 <span class="v" id="setToastOpV">0.31</span></div>
+                  <div class="lbl" style="margin-top: 12px"><span data-i18n="settingsModal.display.toastOpacity">Opacity</span> <span class="v" id="setToastOpV">0.31</span></div>
                   <input type="range" id="setToastOp" min="0.25" max="1" step="0.01" value="0.31" />
-                  <div class="lbl" style="margin-top: 10px">글자 크기 <span class="v" id="setToastFsV">13px</span></div>
+                  <div class="lbl" style="margin-top: 10px"><span data-i18n="settingsModal.display.toastFontSize">Font size</span> <span class="v" id="setToastFsV">13px</span></div>
                   <input type="range" id="setToastFs" min="11" max="17" step="1" value="13" />
-                  <div class="lbl" style="margin-top: 10px">세로 여백 <span class="v" id="setToastPyV">10px</span></div>
+                  <div class="lbl" style="margin-top: 10px"><span data-i18n="settingsModal.display.toastPadY">Vertical padding</span> <span class="v" id="setToastPyV">10px</span></div>
                   <input type="range" id="setToastPy" min="6" max="16" step="1" value="10" />
-                  <div class="lbl" style="margin-top: 10px">가로 여백 <span class="v" id="setToastPxV">18px</span></div>
+                  <div class="lbl" style="margin-top: 10px"><span data-i18n="settingsModal.display.toastPadX">Horizontal padding</span> <span class="v" id="setToastPxV">18px</span></div>
                   <input type="range" id="setToastPx" min="10" max="28" step="1" value="18" />
-                  <div class="toast toast-preview toast-accent" id="setToastPreview">✓ 복사됨 — "여기에 복사한 내용이 최대 3줄까지 보입니다"</div>
-                  <div class="note" style="margin-top: 8px">카드를 복사하면 창 아래에 잠깐 뜨는 알림입니다. 라이트 모드에서는 흰색 글자 대비를 위해 알림 배경을 최소 0.76 불투명도로 보정합니다.</div>
+                  <div class="toast toast-preview toast-accent" id="setToastPreview" data-i18n="settingsModal.display.toastPreview">✓ Copied — "A preview of what you copied shows here, up to 3 lines"</div>
+                  <div class="note" style="margin-top: 8px" data-i18n="settingsModal.display.toastNote">The toast that briefly appears at the bottom when you copy a card. In light mode, the background is corrected to a minimum opacity of 0.76 for white-text contrast.</div>
                 </div>
               </section>
               <section class="settings-panel" data-settings-panel="history">
                 <div class="set-grp">
-                  <div class="lbl">히스토리 유지 개수</div>
+                  <div class="lbl" data-i18n="settingsModal.history.keepCountLabel">History size</div>
                   <input type="number" id="setKeep" min="1" max="1000" step="1" value="100" inputmode="numeric" />
                   <div class="row" id="setKeepPresets" style="margin-top: 8px">
                     <span class="chip" data-keep="50">50</span><span class="chip" data-keep="100">100</span><span class="chip" data-keep="200">200</span><span class="chip" data-keep="500">500</span><span class="chip" data-keep="1000">1000</span>
                   </div>
-                  <div class="note" style="margin-top: 6px">1~1000개를 직접 입력하거나 빠른 값을 선택하세요. 핀 항목은 카운트에서 제외되고, 개수를 줄이면 가장 오래된 비핀 기록부터 정리됩니다.</div>
+                  <div class="note" style="margin-top: 6px" data-i18n="settingsModal.history.keepCountNote">Type a value from 1–1000 or pick a quick preset. Pinned items don't count toward the limit, and the oldest unpinned items are trimmed first when you lower it.</div>
                 </div>
                 <div class="set-grp">
-                  <div class="lbl">중복 기록</div>
-                  <button class="btn" id="settingsDedupeBtn">♻ 중복 기록 제거</button>
-                  <div class="note" style="margin-top: 8px">같은 내용·유형의 비핀 기록은 최신 1개만 남기고 정리합니다. 핀 기록은 유지됩니다.</div>
+                  <div class="lbl" data-i18n="settingsModal.history.dupLabel">Duplicate entries</div>
+                  <button class="btn" id="settingsDedupeBtn" data-i18n="settingsModal.history.dupBtn">♻ Remove duplicates</button>
+                  <div class="note" style="margin-top: 8px" data-i18n="settingsModal.history.dupNote">Keeps only the newest of each unpinned entry with the same content/type. Pinned entries are kept.</div>
                 </div>
                 <div class="set-grp">
-                  <div class="lbl">메모리</div>
-                  <button class="btn danger" id="memReset">🧹 메모리 리셋 (모든 기록 삭제)</button>
-                  <div class="note" style="margin-top: 8px">클립보드 히스토리를 전부 비웁니다(핀 포함). 되돌릴 수 없습니다.</div>
+                  <div class="lbl" data-i18n="settingsModal.history.memLabel">Memory</div>
+                  <button class="btn danger" id="memReset" data-i18n="settingsModal.history.memBtn">🧹 Reset memory (delete all history)</button>
+                  <div class="note" style="margin-top: 8px" data-i18n="settingsModal.history.memNote">Empties the entire clipboard history (including pins). This cannot be undone.</div>
                 </div>
               </section>
               <section class="settings-panel" data-settings-panel="remote">
                 <div class="set-grp">
-                  <label class="checkrow"><input type="checkbox" id="remoteEnabled" /> 스크롤 리모컨 사용</label>
-                  <div class="note" style="margin-top: 8px">끄면 창 안의 ▲▼ 스크롤 리모컨이 사라집니다. 마우스 휠·키보드 탐색은 그대로 동작합니다.</div>
+                  <label class="checkrow"><input type="checkbox" id="remoteEnabled" /> <span data-i18n="settingsModal.remote.enable">Use scroll remote</span></label>
+                  <div class="note" style="margin-top: 8px" data-i18n="settingsModal.remote.enableNote">When off, the ▲▼ scroll remote inside the window disappears. Mouse wheel/keyboard navigation still works.</div>
                 </div>
                 <div class="set-grp">
-                  <div class="lbl">리모컨 평소 투명도 <span class="v" id="setOpV">65%</span></div>
+                  <div class="lbl"><span data-i18n="settingsModal.remote.opacity">Remote idle opacity</span> <span class="v" id="setOpV">65%</span></div>
                   <input type="range" id="setOp" min="20" max="100" step="5" value="65" />
-                  <div class="lbl" style="margin-top: 12px">드웰 임계 시간 <span class="v" id="setDwellV">700ms</span></div>
+                  <div class="lbl" style="margin-top: 12px"><span data-i18n="settingsModal.remote.dwell">Dwell threshold</span> <span class="v" id="setDwellV">700ms</span></div>
                   <input type="range" id="setDwell" min="200" max="2000" step="100" value="700" />
-                  <div class="lbl" style="margin-top: 12px">스크롤 속도 <span class="v" id="setSpeedV">6</span></div>
+                  <div class="lbl" style="margin-top: 12px"><span data-i18n="settingsModal.remote.speed">Scroll speed</span> <span class="v" id="setSpeedV">6</span></div>
                   <input type="range" id="setSpeed" min="1" max="20" step="1" value="6" />
-                  <div class="lbl" style="margin-top: 12px">활성화 방식</div>
-                  <div class="row" id="setModeRow"><span class="chip" data-mode="dwell">드웰</span><span class="chip" data-mode="click">클릭/홀드</span></div>
+                  <div class="lbl" style="margin-top: 12px" data-i18n="settingsModal.remote.modeLabel">Activation mode</div>
+                  <div class="row" id="setModeRow"><span class="chip" data-mode="dwell" data-i18n="settingsModal.remote.modeDwell">Dwell</span><span class="chip" data-mode="click" data-i18n="settingsModal.remote.modeClick">Click/hold</span></div>
                 </div>
               </section>
               <section class="settings-panel" data-settings-panel="security">
                 <div class="set-grp">
-                  <label class="checkrow"><input type="checkbox" id="contentProtection" /> 화면 캡처 방지 (보안)</label>
-                  <div class="note" style="margin-top: 8px">켜면 스크린샷·화면 녹화·화면 공유에 이 창이 잡히지 않습니다. 데모로 창을 보여줘야 할 때만 해제하세요. 일부 원격 데스크톱(RDP)에서는 효과가 다를 수 있습니다.</div>
+                  <label class="checkrow"><input type="checkbox" id="contentProtection" /> <span data-i18n="settingsModal.security.contentProtection">Screen capture protection (security)</span></label>
+                  <div class="note" style="margin-top: 8px" data-i18n="settingsModal.security.contentProtectionNote">When on, this window is excluded from screenshots, screen recording, and screen sharing. Turn it off only when you need to demo the window. Effects may vary on some remote desktop (RDP) setups.</div>
                 </div>
               </section>
             </div>
           </div>
         </div>
-        <div class="modal-foot"><button class="btn primary" data-close>완료</button></div>
+        <div class="modal-foot"><button class="btn primary" data-close data-i18n="settingsModal.done">Done</button></div>
       </div>
     </div>
 
     <!-- S5 확인 모달 (D15 비가역 방지) -->
     <div class="overlay" id="confirmOverlay">
       <div class="modal" style="width: min(380px, 90vw)">
-        <div class="modal-head"><h3 id="confirmTitle">확인</h3></div>
+        <div class="modal-head"><h3 id="confirmTitle" data-i18n="confirmDefaults.title">Confirm</h3></div>
         <div class="modal-body">
           <div id="confirmMsg" style="font-size: 14px; line-height: 1.6"></div>
         </div>
         <div class="modal-foot">
-          <button class="btn" id="confirmNo">취소</button>
-          <button class="btn danger" id="confirmYes">삭제</button>
+          <button class="btn" id="confirmNo" data-i18n="confirmDefaults.cancel">Cancel</button>
+          <button class="btn danger" id="confirmYes" data-i18n="confirmDelete.yes">Delete</button>
         </div>
       </div>
     </div>
@@ -1041,11 +1048,11 @@
     <!-- 단축키 선점 등 되돌릴 필요가 없는 알림 모달 -->
     <div class="overlay" id="noticeOverlay">
       <div class="modal" style="width: min(380px, 90vw)">
-        <div class="modal-head"><h3 id="noticeTitle">알림</h3></div>
+        <div class="modal-head"><h3 id="noticeTitle" data-i18n="noticeDefaults.title">Notice</h3></div>
         <div class="modal-body">
           <div id="noticeMsg" style="font-size: 14px; line-height: 1.6"></div>
         </div>
-        <div class="modal-foot"><button class="btn primary" id="noticeOk">확인</button></div>
+        <div class="modal-foot"><button class="btn primary" id="noticeOk" data-i18n="noticeDefaults.ok">OK</button></div>
       </div>
     </div>
 
