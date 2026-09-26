@@ -136,6 +136,9 @@ async function doCopy(item: ClipItem): Promise<void> {
   selectAt(0)
 }
 
+/** 더블클릭 판정용: 연속 클릭의 첫 번째가 가리킨 항목(재정렬 전 대상). */
+let firstClickItem: ClipItem | null = null
+
 async function doPaste(item: ClipItem): Promise<void> {
   await window.copyManager.paste(item.id)
 }
@@ -199,14 +202,19 @@ function buildCard(it: ClipItem, index: number): HTMLDivElement {
     card.appendChild(content)
   }
 
-  card.addEventListener('click', () => {
+  // 첫 클릭의 doCopy가 카드를 맨 앞으로 재정렬해 다시 그리므로, 더블클릭의 두 번째 클릭은
+  // 같은 자리의 "다른" 카드에 떨어진다. 그래서 dblclick 대신 click의 detail로 판정하고
+  // 붙여넣을 항목은 첫 클릭 때 잡아 둔 것을 쓴다.
+  card.addEventListener('click', (e) => {
+    if (e.detail >= 2) {
+      if (e.detail === 2) void doPaste(firstClickItem ?? it)
+      return
+    }
+    firstClickItem = it
     sel = index
     isResultNavigation = true
     selectAt(index)
     void doCopy(it)
-  })
-  card.addEventListener('dblclick', () => {
-    void doPaste(it)
   })
   card.addEventListener('contextmenu', (e) => {
     e.preventDefault()
