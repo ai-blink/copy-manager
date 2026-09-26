@@ -51,6 +51,7 @@ describe('SettingsStore (D17)', () => {
       windowPlacement: 'bottom-right',
       windowPosition: { x: 1480, y: 220 },
       alwaysOnTop: false,
+      appTheme: 'light',
       contentProtection: false // 기본 true 와 다른 값으로 라운드트립 확인 (D28)
     })
     await a.save()
@@ -65,6 +66,7 @@ describe('SettingsStore (D17)', () => {
     expect(b.get().windowPlacement).toBe('bottom-right')
     expect(b.get().windowPosition).toEqual({ x: 1480, y: 220 })
     expect(b.get().alwaysOnTop).toBe(false)
+    expect(b.get().appTheme).toBe('light')
     expect(b.get().contentProtection).toBe(false)
   })
 
@@ -95,6 +97,7 @@ describe('SettingsStore (D17)', () => {
     expect(s.get().windowPosition).toBeNull() // 신규 키 누락 → 9분할 배치값을 사용
     expect(s.get().alwaysOnTop).toBe(true) // 신규 키 누락 → 기본값 true(항상 위)
     expect(s.get().contentProtection).toBe(true) // 신규 키 누락 → 기본값 true(보안 우선, D28)
+    expect(s.get().appTheme).toBe('dark') // 신규 키 누락 → 기존 기본 다크 모드
   })
 
   it('(e-2) v1에 저장된 이전 기본값 50은 새 기본값 100으로 마이그레이션한다', async () => {
@@ -109,7 +112,7 @@ describe('SettingsStore (D17)', () => {
     await s.load()
 
     expect(s.get().keepCount).toBe(100)
-    expect(JSON.parse(await fs.readFile(filePath, 'utf8'))).toMatchObject({ version: 2 })
+    expect(JSON.parse(await fs.readFile(filePath, 'utf8'))).toMatchObject({ version: 3 })
 
     s.set({ keepCount: 50 })
     await s.save()
@@ -178,5 +181,25 @@ describe('복사 토스트 설정 (D34)', () => {
     expect(s.cols).toBe(4)
     expect(s.toastTheme).toBe(DEFAULT_SETTINGS.toastTheme)
     expect(s.toastOpacity).toBe(DEFAULT_SETTINGS.toastOpacity)
+  })
+})
+
+describe('앱 테마 설정', () => {
+  it('기본 다크 모드를 사용하고 라이트 모드는 저장 뒤에도 유지한다', async () => {
+    expect(DEFAULT_SETTINGS.appTheme).toBe('dark')
+    const path = tmpFile()
+    const store = new SettingsStore(path)
+    store.set({ appTheme: 'light' })
+    await store.save()
+
+    const reloaded = new SettingsStore(path)
+    await reloaded.load()
+    expect(reloaded.get().appTheme).toBe('light')
+  })
+
+  it('알 수 없는 앱 테마는 기존 값을 유지한다', () => {
+    const store = new SettingsStore(tmpFile())
+    store.set({ appTheme: 'light' })
+    expect(store.set({ appTheme: 'system' as never }).appTheme).toBe('light')
   })
 })

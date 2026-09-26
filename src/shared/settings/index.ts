@@ -9,6 +9,10 @@ export type RemoteMode = 'dwell' | 'click'
 export const MIN_KEEP_COUNT = 1
 export const MAX_KEEP_COUNT = 1000
 
+/** 앱 전역 색상 모드. OS 설정을 따르지 않고 사용자가 명시적으로 고른 값을 저장한다. */
+export type AppTheme = 'dark' | 'light'
+export const APP_THEMES: readonly AppTheme[] = ['dark', 'light']
+
 /** 복사 토스트 배색(D34). 후보 비교에서 고른 4종. */
 export type ToastTheme = 'dark' | 'accent' | 'mint' | 'black'
 export const TOAST_THEMES: readonly ToastTheme[] = ['dark', 'accent', 'mint', 'black']
@@ -44,6 +48,8 @@ export interface AppSettings {
   cols: number
   /** 전체 UI 배율. Electron 렌더러 zoom factor (0.75~1.5) */
   uiScale: number
+  /** 앱 전역 색상 모드. 토스트의 대비 보정에도 사용한다. */
+  appTheme: AppTheme
   /** 현재 화면 작업 영역 안의 9분할 창 배치 */
   windowPlacement: WindowPlacement
   /** 사용자가 헤더를 드래그해 옮긴 실제 창 좌표. 없으면 9분할 배치값을 사용한다. */
@@ -86,6 +92,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   hotkey: 'CommandOrControl+Alt+V',
   cols: 3,
   uiScale: 1,
+  appTheme: 'dark',
   windowPlacement: 'center',
   windowPosition: null,
   keepCount: 100,
@@ -137,6 +144,10 @@ function normalizeToastTheme(value: unknown, fallback: ToastTheme): ToastTheme {
   return TOAST_THEMES.includes(value as ToastTheme) ? (value as ToastTheme) : fallback
 }
 
+function normalizeAppTheme(value: unknown, fallback: AppTheme): AppTheme {
+  return APP_THEMES.includes(value as AppTheme) ? (value as AppTheme) : fallback
+}
+
 /** 토스트 관련 값만 보정해 반환 — set()/load() 양쪽에서 같은 규칙을 쓴다. */
 function normalizeToast(
   source: Partial<AppSettings>,
@@ -181,6 +192,7 @@ export class SettingsStore {
       ...this.data,
       ...patch,
       keepCount: normalizeKeepCount(patch.keepCount, this.data.keepCount),
+      appTheme: normalizeAppTheme(patch.appTheme, this.data.appTheme),
       ...normalizeToast(patch, this.data),
       windowPosition:
         patch.windowPosition === undefined
@@ -223,6 +235,7 @@ export class SettingsStore {
       ...DEFAULT_SETTINGS,
       ...persisted,
       keepCount,
+      appTheme: normalizeAppTheme(persisted.appTheme, DEFAULT_SETTINGS.appTheme),
       ...normalizeToast(persisted, DEFAULT_SETTINGS)
     }
     if (migrateLegacyDefault) await this.save()
@@ -230,7 +243,7 @@ export class SettingsStore {
 
   /** 현재 설정을 JSON 파일로 저장(디렉토리 없으면 생성). */
   async save(): Promise<void> {
-    const payload: SettingsPersist = { version: 2, settings: this.data }
+    const payload: SettingsPersist = { version: 3, settings: this.data }
     await fs.mkdir(dirname(this.filePath), { recursive: true })
     await fs.writeFile(this.filePath, JSON.stringify(payload, null, 2), 'utf8')
   }

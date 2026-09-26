@@ -1,5 +1,5 @@
 import type { ClipItem, ClipType } from '../../shared/clipboard-store'
-import type { AppSettings, ToastTheme } from '../../shared/settings'
+import type { AppSettings, AppTheme, ToastTheme } from '../../shared/settings'
 import { mountScrollRemote } from './scroll-remote'
 
 // 렌더러(vanilla TS). mockup v4 로직을 타입 안전하게 포팅.
@@ -25,6 +25,7 @@ const TOAST_THEME_CLASSES: Record<ToastTheme, string> = {
 }
 // 토스트는 최대 3줄까지 보여주므로(CSS line-clamp) 그만큼은 내용을 넘긴다.
 const TOAST_CONTENT_MAX = 100
+const LIGHT_TOAST_MIN_OPACITY = 0.76
 
 let cols = 3 // D4: 한 줄 카드 수(설정 모달에서 2~5 변경). 시작값 3.
 
@@ -560,6 +561,9 @@ function syncSettingsControls(s: AppSettings): void {
   document
     .querySelectorAll<HTMLElement>('#setPlacementGrid .chip')
     .forEach((c) => c.classList.toggle('on', c.dataset['placement'] === s.windowPlacement))
+  document
+    .querySelectorAll<HTMLElement>('#setAppThemeRow .chip')
+    .forEach((c) => c.classList.toggle('on', c.dataset['appTheme'] === s.appTheme))
   $<HTMLInputElement>('setKeep').value = String(s.keepCount)
   document
     .querySelectorAll<HTMLElement>('#setKeepPresets .chip')
@@ -592,10 +596,15 @@ function syncSettingsControls(s: AppSettings): void {
   $<HTMLInputElement>('launchAtStartup').checked = s.launchAtStartup
 }
 
+function toastSurfaceOpacity(opacity: number, appTheme: AppTheme): number {
+  return appTheme === 'light' ? Math.max(opacity, LIGHT_TOAST_MIN_OPACITY) : opacity
+}
+
 /** 토스트 배색·수치를 실제 토스트와 설정 미리보기 양쪽에 반영한다(D34). */
 function applyToastStyle(s: AppSettings): void {
   const root = document.documentElement.style
   root.setProperty('--toast-op', String(s.toastOpacity))
+  root.setProperty('--toast-surface-op', String(toastSurfaceOpacity(s.toastOpacity, s.appTheme)))
   root.setProperty('--toast-fs', `${s.toastFontSize}px`)
   root.setProperty('--toast-py', `${s.toastPadY}px`)
   root.setProperty('--toast-px', `${s.toastPadX}px`)
@@ -608,6 +617,7 @@ function applyToastStyle(s: AppSettings): void {
 function applySettings(s: AppSettings): void {
   cols = s.cols
   keepCount = s.keepCount
+  document.documentElement.dataset['appTheme'] = s.appTheme
   applyToastStyle(s)
   setAotBtn(s.alwaysOnTop)
   document.documentElement.style.setProperty('--cols', String(s.cols))
@@ -640,6 +650,13 @@ document.querySelectorAll<HTMLElement>('#setPlacementGrid .chip').forEach((c) =>
   c.addEventListener('click', () => {
     const placement = c.dataset['placement'] as AppSettings['windowPlacement'] | undefined
     if (placement) void patchSettings({ windowPlacement: placement })
+  })
+)
+
+document.querySelectorAll<HTMLElement>('#setAppThemeRow .chip').forEach((c) =>
+  c.addEventListener('click', () => {
+    const appTheme = c.dataset['appTheme'] as AppTheme | undefined
+    if (appTheme === 'dark' || appTheme === 'light') void patchSettings({ appTheme })
   })
 )
 
@@ -697,6 +714,13 @@ function bindToastRange(
     const shown = format(el.value)
     $(valueId).textContent = shown
     document.documentElement.style.setProperty(cssVar, shown)
+    if (cssVar === '--toast-op') {
+      const appTheme = document.documentElement.dataset['appTheme'] as AppTheme | undefined
+      document.documentElement.style.setProperty(
+        '--toast-surface-op',
+        String(toastSurfaceOpacity(Number(el.value), appTheme === 'light' ? 'light' : 'dark'))
+      )
+    }
   })
   el.addEventListener('change', () => void patchSettings(toPatch(Number(el.value))))
 }
