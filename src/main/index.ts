@@ -62,7 +62,12 @@ let pollTimer: ReturnType<typeof setInterval> | null = null
 let clipboardWatcher: ClipboardWatcherHandle | null = null
 let historySaveTimer: ReturnType<typeof setTimeout> | null = null
 let windowPositionTimer: ReturnType<typeof setTimeout> | null = null
-let suppressedCapture: Pick<ClipItem, 'type' | 'content'> | null = null
+/** 앱이 방금 쓴 클립보드 값. 키가 내용뿐이면 무기한 남아 정당한 재복사를 삼키므로 만료 시각을 둔다. */
+let suppressedCapture: (Pick<ClipItem, 'type' | 'content'> & { expiresAt: number }) | null = null
+const SUPPRESS_TTL_MS = 1_500
+const WATCHER_RESTART_DELAY_MS = 2_000
+let watcherRestartTimer: ReturnType<typeof setTimeout> | null = null
+let appQuitting = false
 let historyFlushedForQuit = false
 
 /** 설정의 language 값 + OS 로케일로 현재 표시 언어를 정한다(D42 i18n). */
@@ -179,7 +184,13 @@ function captureCurrentClipboard(s: ClipboardStore): void {
   try {
     const added = captureOnce(electronReader, s, (type, content) => {
       if (!suppressedCapture) return false
-      if (suppressedCapture.type === type && suppressedCapture.content === content) return true
+      if (
+        Date.now() <= suppressedCapture.expiresAt &&
+        suppressedCapture.type === type &&
+        suppressedCapture.content === content
+      ) {
+        return true
+      }
       suppressedCapture = null
       return false
     })
@@ -195,12 +206,26 @@ function captureCurrentClipboard(s: ClipboardStore): void {
 
 function startClipboardCapture(s: ClipboardStore): void {
   // WM_CLIPBOARDUPDATE가 즉시 캡처를 깨우고, 폴링은 감시 프로세스 실패/경쟁 상태의 안전망이다.
+  startClipboardWatcher(s)
+  pollTimer = setInterval(() => captureCurrentClipboard(s), POLL_INTERVAL_MS)
+}
+
+/** 감시 프로세스가 죽거나 준비 실패하면 폴링만 남지 않도록 지연 후 다시 띄운다. */
+function startClipboardWatcher(s: ClipboardStore): void {
   clipboardWatcher = startWindowsClipboardWatcher({
     onChange: () => captureCurrentClipboard(s),
     onReady: () => console.info('[copy-manager] Windows 클립보드 변경 감시 시작'),
-    onError: (err) => console.warn('[copy-manager] 변경 감시 실패 — 250ms 폴링 유지:', err)
+    onError: (err) => {
+      console.warn('[copy-manager] 변경 감시 실패 — 250ms 폴링 유지 후 재시작 예정:', err)
+      clipboardWatcher?.stop()
+      clipboardWatcher = null
+      if (appQuitting || watcherRestartTimer) return
+      watcherRestartTimer = setTimeout(() => {
+        watcherRestartTimer = null
+        if (!appQuitting) startClipboardWatcher(s)
+      }, WATCHER_RESTART_DELAY_MS)
+    }
   })
-  pollTimer = setInterval(() => captureCurrentClipboard(s), POLL_INTERVAL_MS)
 }
 
 /** 연속 복사 중에는 메모리/UI를 즉시 갱신하고, 전체 파일 저장은 마지막 변경 뒤 한 번 수행한다. */
@@ -225,13 +250,20 @@ async function flushHistorySave(s: ClipboardStore): Promise<void> {
 
 /** 중복 제거 직후 현재 OS 클립보드가 폴링으로 즉시 다시 적재되지 않도록 억제한다. */
 function suppressCurrentClipboardCapture(): void {
+  const expiresAt = Date.now() + SUPPRESS_TTL_MS
   const image = electronReader.readImageDataUrl()
   if (image) {
-    suppressedCapture = { type: 'image', content: image }
+    suppressedCapture = { type: 'image', content: image, expiresAt }
     return
   }
   const text = electronReader.readText()
-  suppressedCapture = text.trim().length > 0 ? { type: classifyText(text), content: text } : null
+  suppressedCapture =
+    text.trim().length > 0 ? { type: classifyText(text), content: text, expiresAt } : null
+}
+
+/** 삭제·초기화 뒤에는 이전 억제가 같은 내용의 정당한 재복사를 막지 않게 즉시 해제한다. */
+function clearCaptureSuppression(): void {
+  suppressedCapture = null
 }
 
 /** id 항목을 OS 클립보드에 쓴다(텍스트/링크/코드=텍스트, 이미지=dataURL). */
@@ -320,6 +352,7 @@ function registerIpc(s: ClipboardStore): void {
   ipcMain.handle('clip:delete', async (_event, rawId: unknown): Promise<boolean> => {
     if (typeof rawId !== 'string') return false
     s.remove(rawId)
+    clearCaptureSuppression()
     await s.save()
     notifyRenderer()
     return true
@@ -328,6 +361,7 @@ function registerIpc(s: ClipboardStore): void {
   // S5: 모두 지우기(핀 제외) — D15
   ipcMain.handle('clip:clear', async (): Promise<boolean> => {
     s.clearUnpinned()
+    clearCaptureSuppression()
     await s.save()
     notifyRenderer()
     return true
@@ -337,7 +371,11 @@ function registerIpc(s: ClipboardStore): void {
   ipcMain.handle('clip:deduplicate', async (): Promise<number> => {
     const removed = s.removeDuplicates()
     if (removed === 0) return 0
-    suppressCurrentClipboardCapture()
+    // 아직 히스토리에 없는(미캡처) 값까지 억제하면 정당한 신규 복사를 잃으므로, 이미 저장된 값만 억제한다.
+    const current = electronReader.readText()
+    if (s.getAll().some((i) => i.type !== 'image' && i.content === current)) {
+      suppressCurrentClipboardCapture()
+    }
     await s.save()
     notifyRenderer()
     return removed
@@ -346,6 +384,7 @@ function registerIpc(s: ClipboardStore): void {
   // S5: 메모리 리셋(핀 포함 전체) — D15/D17
   ipcMain.handle('clip:reset', async (): Promise<boolean> => {
     s.clear()
+    clearCaptureSuppression()
     await s.save()
     notifyRenderer()
     return true
@@ -454,6 +493,7 @@ app.on('window-all-closed', () => {
 })
 
 app.on('before-quit', (event) => {
+  appQuitting = true
   if (!store || historyFlushedForQuit) return
   event.preventDefault()
   void flushHistorySave(store)
