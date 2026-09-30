@@ -180,9 +180,14 @@ function loadRenderer(win: BrowserWindow): void {
   }
 }
 
-function captureCurrentClipboard(s: ClipboardStore): void {
+/** snapshotText 는 감시 프로세스가 변경 시점에 읽은 텍스트다 — 이후 덮어써져도 그 시점 값을 잃지 않는다(D43). */
+function captureCurrentClipboard(s: ClipboardStore, snapshotText?: string): void {
+  const reader: ClipboardReader =
+    snapshotText === undefined
+      ? electronReader
+      : { readText: () => snapshotText, readImageDataUrl: () => null }
   try {
-    const added = captureOnce(electronReader, s, (type, content) => {
+    const added = captureOnce(reader, s, (type, content) => {
       if (!suppressedCapture) return false
       if (
         Date.now() <= suppressedCapture.expiresAt &&
@@ -213,7 +218,7 @@ function startClipboardCapture(s: ClipboardStore): void {
 /** 감시 프로세스가 죽거나 준비 실패하면 폴링만 남지 않도록 지연 후 다시 띄운다. */
 function startClipboardWatcher(s: ClipboardStore): void {
   clipboardWatcher = startWindowsClipboardWatcher({
-    onChange: () => captureCurrentClipboard(s),
+    onChange: (snapshotText) => captureCurrentClipboard(s, snapshotText),
     onReady: () => console.info('[copy-manager] Windows 클립보드 변경 감시 시작'),
     onError: (err) => {
       console.warn('[copy-manager] 변경 감시 실패 — 250ms 폴링 유지 후 재시작 예정:', err)

@@ -54,9 +54,24 @@ public sealed class CopyManagerClipboardWatcher : Form {
     base.OnHandleDestroyed(e);
   }
 
+  // 변경 시점의 텍스트를 함께 보낸다(D43). 신호만 보내면 main 이 읽기 전에 다음 복사가 덮어써 중간 항목이 사라진다.
+  // 이미지가 함께 있거나 읽기 실패·초대형이면 payload 없이 CHANGED 만 보내 main 이 기존처럼 읽는다.
+  private const int MAX_SNAPSHOT_CHARS = 1000000;
+
+  private static string SnapshotLine() {
+    try {
+      if (Clipboard.ContainsImage() || !Clipboard.ContainsText(TextDataFormat.UnicodeText)) return "CHANGED";
+      string text = Clipboard.GetText(TextDataFormat.UnicodeText);
+      if (String.IsNullOrEmpty(text) || text.Length > MAX_SNAPSHOT_CHARS) return "CHANGED";
+      return "CHANGED " + Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(text));
+    } catch {
+      return "CHANGED";
+    }
+  }
+
   protected override void WndProc(ref Message message) {
     if (message.Msg == WM_CLIPBOARDUPDATE) {
-      Console.WriteLine("CHANGED");
+      Console.WriteLine(SnapshotLine());
       Console.Out.Flush();
     }
     base.WndProc(ref message);
@@ -73,8 +88,23 @@ export interface ClipboardWatcherHandle {
   stop(): void
 }
 
+/** 감시 프로세스의 한 줄을 해석한다. CHANGED[ <base64 utf8 텍스트>] → 변경 신호와 선택적 텍스트 스냅샷. */
+export function parseWatcherLine(
+  line: string
+): { kind: 'ready' } | { kind: 'changed'; text?: string } | null {
+  if (line === 'READY') return { kind: 'ready' }
+  if (line === 'CHANGED') return { kind: 'changed' }
+  if (line.startsWith('CHANGED ')) {
+    const payload = line.slice('CHANGED '.length)
+    if (!/^[A-Za-z0-9+/]*={0,2}$/.test(payload)) return { kind: 'changed' }
+    return { kind: 'changed', text: Buffer.from(payload, 'base64').toString('utf8') }
+  }
+  return null
+}
+
 export interface ClipboardWatcherCallbacks {
-  onChange(): void
+  /** snapshotText 가 있으면 변경 시점의 텍스트다(이미지 없음). 없으면 호출자가 현재 클립보드를 읽는다. */
+  onChange(snapshotText?: string): void
   onReady?(): void
   onError?(error: Error): void
 }
@@ -118,12 +148,12 @@ export function startWindowsClipboardWatcher(
     const lines = stdoutBuffer.split(/\r?\n/)
     stdoutBuffer = lines.pop() ?? ''
     for (const rawLine of lines) {
-      const line = rawLine.trim()
-      if (line === 'READY') {
+      const parsed = parseWatcherLine(rawLine.trim())
+      if (parsed?.kind === 'ready') {
         clearTimeout(readyTimer)
         callbacks.onReady?.()
-      } else if (line === 'CHANGED') {
-        callbacks.onChange()
+      } else if (parsed?.kind === 'changed') {
+        callbacks.onChange(parsed.text)
       }
     }
   })
