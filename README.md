@@ -70,3 +70,11 @@ npm run dist       # Windows NSIS 설치본과 무설치본 생성
 ## 범위 밖
 
 전역 시스템 스크롤 리모컨 · 클라우드 동기화 · 다국어 · `win+v` 강제 가로채기 · macOS/Linux
+
+## 라이선스
+
+**개인 사용 무료.** 개인이 비상업 목적으로 사용하는 것은 무료입니다.
+
+회사·단체·의뢰 업무에서의 사용, 상업적 이용, 재배포·판매, 수정본 제작·배포는 제작자의 허가가 필요합니다. [ikseon@blinklabs.co.kr](mailto:ikseon@blinklabs.co.kr)로 이메일 주시면 협의합니다. 소스 코드는 참고용으로만 볼 수 있습니다.
+
+Copyright © 2026 장익선(BlinkLabs). All rights reserved. 자세한 내용은 [LICENSE](LICENSE)(영문 원문이 우선)를 참고하세요.
