@@ -199,15 +199,15 @@ export class ClipboardStore {
 
   /**
    * 현재 상태를 JSON 파일로 저장한다.
-   * - 호출 시점의 스냅샷을 만든 뒤 저장 큐에 넣어 겹치는 writeFile 을 막는다.
+   * - 호출 시점의 항목 상태만 복사한다. 큰 content 문자열은 불변이므로 공유한다.
+   * - JSON 변환·암호화는 큐 안에서 수행해 대기 중 대용량 문자열이 쌓이지 않게 한다.
    * - 임시 파일을 완성한 뒤 교체해 종료/오류 중 기존 파일이 잘리는 위험을 줄인다.
    */
   save(): Promise<void> {
-    const payload: PersistShape = { version: 1, items: this.items }
-    const json = JSON.stringify(payload, null, 2)
-    const encrypted = this.cipher.encrypt(json)
+    const payload: PersistShape = { version: 1, items: this.items.map((item) => ({ ...item })) }
     const tempPath = `${this.filePath}.tmp`
     const operation = this.saveQueue.then(async () => {
+      const encrypted = this.cipher.encrypt(JSON.stringify(payload, null, 2))
       await fs.mkdir(dirname(this.filePath), { recursive: true })
       await fs.writeFile(tempPath, encrypted, 'utf8')
       await fs.rename(tempPath, this.filePath)

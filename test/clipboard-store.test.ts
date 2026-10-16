@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from 'vitest'
+import { describe, it, expect, afterEach, vi } from 'vitest'
 import { promises as fs } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -165,6 +165,83 @@ describe('JSON 영속화 (S2)', () => {
     await reloaded.load()
     expect(reloaded.getAll().map((item) => item.content)).toEqual(['first', 'second'])
     await expect(fs.stat(`${filePath}.tmp`)).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
+  it('(e-4) 디스크 저장 대기 중에는 다음 스냅샷을 암호화하지 않는다', async () => {
+    const filePath = tmpFile()
+    const encrypt = vi.fn((plain: string) => plain)
+    const store = new ClipboardStore({
+      filePath,
+      cipher: { encrypt, decrypt: (stored) => stored }
+    })
+    store.add({ content: 'x'.repeat(1024 * 1024) })
+    let release!: () => void
+    let started!: () => void
+    const gate = new Promise<void>((resolve) => { release = resolve })
+    const writing = new Promise<void>((resolve) => { started = resolve })
+    const rename = fs.rename.bind(fs)
+    const spy = vi.spyOn(fs, 'rename').mockImplementationOnce(async (from, to) => {
+      started()
+      await gate
+      await rename(from, to)
+    })
+    const pending: Promise<void>[] = []
+    try {
+      pending.push(store.save())
+      await writing
+      for (let i = 0; i < 9; i++) pending.push(store.save())
+      expect(encrypt).toHaveBeenCalledTimes(1)
+    } finally {
+      release()
+      await Promise.allSettled(pending)
+      spy.mockRestore()
+    }
+    expect(encrypt).toHaveBeenCalledTimes(10)
+    const reloaded = new ClipboardStore({ filePath })
+    await reloaded.load()
+    expect(reloaded.getAll()).toEqual(store.getAll())
+  })
+
+  it('(e-5) 지연 저장도 호출 당시 핀 상태·사용 시각·항목 순서를 보존한다', async () => {
+    const snapshots: unknown[] = []
+    const store = new ClipboardStore({
+      filePath: tmpFile(),
+      cipher: {
+        encrypt: (plain) => { snapshots.push(JSON.parse(plain)); return plain },
+        decrypt: (stored) => stored
+      }
+    })
+    const first = store.add({ content: 'first', createdAt: 1 })
+    store.add({ content: 'second', createdAt: 2 })
+    const before = store.save()
+    store.setPinned(first.id, true)
+    store.promote(first.id, 3)
+    const after = store.save()
+    store.clear()
+    await Promise.all([before, after])
+    expect(snapshots).toEqual([
+      { version: 1, items: [
+        expect.objectContaining({ content: 'first', pinned: false, createdAt: 1 }),
+        expect.objectContaining({ content: 'second', pinned: false, createdAt: 2 })
+      ] },
+      { version: 1, items: [
+        expect.objectContaining({ content: 'second', pinned: false, createdAt: 2 }),
+        expect.objectContaining({ content: 'first', pinned: true, createdAt: 3 })
+      ] }
+    ])
+  })
+
+  it('(e-6) 암호화 실패는 Promise로 전달하고 다음 저장은 계속 수행한다', async () => {
+    const filePath = tmpFile()
+    const encrypt = vi.fn((plain: string) => plain)
+      .mockImplementationOnce(() => { throw new Error('암호화 실패') })
+    const store = new ClipboardStore({ filePath, cipher: { encrypt, decrypt: (s) => s } })
+    store.add({ content: 'preserved' })
+    await expect(store.save()).rejects.toThrow('암호화 실패')
+    await store.save()
+    const reloaded = new ClipboardStore({ filePath })
+    await reloaded.load()
+    expect(reloaded.getAll()).toEqual(store.getAll())
   })
 })
 
