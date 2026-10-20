@@ -37,8 +37,9 @@ import {
   type ClipboardWatcherHandle
 } from './clipboard-watcher'
 
-// 빠른 연속 복사 누락을 줄인다. 저장은 아래에서 디바운스하므로 폴링과 디스크 쓰기를 분리한다.
+// 변경 이벤트가 정상일 때는 이미지 PNG 재인코딩을 줄이고, 준비/장애 중에는 빠른 폴링으로 보완한다.
 const POLL_INTERVAL_MS = 250
+const HEALTHY_POLL_INTERVAL_MS = 5_000
 const HISTORY_SAVE_DEBOUNCE_MS = 350
 const HISTORY_FILE = 'clip-history.json'
 const SETTINGS_FILE = 'settings.json'
@@ -210,18 +211,26 @@ function captureCurrentClipboard(s: ClipboardStore, snapshotText?: string): void
 }
 
 function startClipboardCapture(s: ClipboardStore): void {
-  // WM_CLIPBOARDUPDATE가 즉시 캡처를 깨우고, 폴링은 감시 프로세스 실패/경쟁 상태의 안전망이다.
+  setClipboardPolling(s, POLL_INTERVAL_MS)
   startClipboardWatcher(s)
-  pollTimer = setInterval(() => captureCurrentClipboard(s), POLL_INTERVAL_MS)
+}
+
+function setClipboardPolling(s: ClipboardStore, intervalMs: number): void {
+  if (pollTimer) clearInterval(pollTimer)
+  pollTimer = setInterval(() => captureCurrentClipboard(s), intervalMs)
 }
 
 /** 감시 프로세스가 죽거나 준비 실패하면 폴링만 남지 않도록 지연 후 다시 띄운다. */
 function startClipboardWatcher(s: ClipboardStore): void {
   clipboardWatcher = startWindowsClipboardWatcher({
     onChange: (snapshotText) => captureCurrentClipboard(s, snapshotText),
-    onReady: () => console.info('[copy-manager] Windows 클립보드 변경 감시 시작'),
+    onReady: () => {
+      setClipboardPolling(s, HEALTHY_POLL_INTERVAL_MS)
+      console.info('[copy-manager] Windows 클립보드 변경 감시 시작')
+    },
     onError: (err) => {
       console.warn('[copy-manager] 변경 감시 실패 — 250ms 폴링 유지 후 재시작 예정:', err)
+      setClipboardPolling(s, POLL_INTERVAL_MS)
       clipboardWatcher?.stop()
       clipboardWatcher = null
       if (appQuitting || watcherRestartTimer) return
