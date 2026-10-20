@@ -27,7 +27,7 @@
 | D17 | 설정 화면 | ⚙️ 모달은 왼쪽 사이드바의 **일반·창/표시·히스토리·리모컨·보안** 탭으로 나눈다. 일반 탭의 핫키는 **첫 보조키·두 번째 보조키·실행 키** 세 콤보박스로 선택해 Electron accelerator 문자열로 저장한다. 그 밖에 창 유지·카드 열·UI 배율·창 배치·유지 개수(1~1000 직접 입력/빠른 선택)·중복 제거·리모컨·캡처 방지·자동 실행·재부팅 리셋을 관리한다. 기록 정리 작업은 확인 모달을 거친다. |
 | D18 | 범위 경계 | 전역 스크롤 리모컨은 **별도 프로젝트** — 단 떼어내기 쉽게 **느슨 결합 컴포넌트**로 설계 |
 | D19 | 빌드/번들 | electron-vite 5 + vite 7(peer 정렬) · main=CJS(`index.js`), preload=CJS(`.cjs`, sandbox 호환), renderer=ESM. electron·nut.js는 external |
-| D20 | 클립보드 캡처 | Windows `WM_CLIPBOARDUPDATE` 변경 이벤트로 즉시 `clipboard.readText/readImage`를 실행하고, **250ms 폴링**은 감시 프로세스 실패·클립보드 잠금 경쟁의 안전망으로 유지한다. 직전 항목과 동일 내용이면 skip한다(D35/D36). (2026-08-25) |
+| D20 | 클립보드 캡처 | Windows `WM_CLIPBOARDUPDATE` 변경 이벤트로 즉시 캡처한다(D36/D43). 안전망 폴링은 감시 준비·장애 중 **250ms**, READY 이후 **5초**로 전환한다. 동일 이미지도 중복 비교 전에 PNG/data URL 변환하므로 정상 상태의 주기적 읽기를 분당 240회에서 12회로 줄인다. 이벤트 누락·일시적 읽기 실패의 안전망 재시도는 최대 5초 걸릴 수 있다. 직전 항목과 동일 내용이면 skip한다. (2026-10-19) |
 | D21 | 저장소 | 로컬 JSON(`%APPDATA%/copy-manager/clip-history.json`) · SQLite는 후순위 (inbox 해소) |
 | D22 | 전역 핫키 기본값 | **Ctrl+Alt+V**(`CommandOrControl+Alt+V`) — 구 Ctrl+Shift+V는 터미널 붙여넣기와 충돌(globalShortcut 전역 독점이라 터미널 입력을 가로챔) → 2026-06-28 변경. 설정 모달에서는 `Ctrl/Alt/Shift` 첫 보조키, 선택적 두 번째 보조키, 영문/숫자/F키 실행 키의 세 콤보박스로 변경하며, 내부 Electron 표기인 `CommandOrControl`은 노출하지 않고 Windows 사용자에게는 `Ctrl`로 표시한다. 새 단축키가 Windows 또는 다른 앱에 선점되어 등록 실패하면 경고하고 기존 등록·저장값을 그대로 유지한다. |
 | D23 | 붙여넣기 합성 | **@nut-tree-fork/nut-js**(공식 @nut-tree/nut-js 비공개→공개 fork) · 직전 창 `getActiveWindow` 저장→`focus()` 복원→`Ctrl↓V↓V↑Ctrl↑`(autoDelayMs 40) 순차 합성 (inbox 해소) |
