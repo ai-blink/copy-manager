@@ -124,9 +124,12 @@ export class ClipboardStore {
     if (!pinned) this.evict()
   }
 
-  /** id 항목 삭제. */
-  remove(id: string): void {
+  /** id 항목 삭제. 핀 항목은 삭제하지 않는다(핀을 먼저 해제해야 함). */
+  remove(id: string): boolean {
+    const target = this.items.find((i) => i.id === id)
+    if (!target || target.pinned) return false
     this.items = this.items.filter((i) => i.id !== id)
+    return true
   }
 
   /** 전체 비우기(핀 포함) — 메모리 리셋용(D17). */

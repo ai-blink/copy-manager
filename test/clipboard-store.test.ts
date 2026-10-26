@@ -294,6 +294,18 @@ describe('ClipboardStore S5 메서드 (삭제/모두지우기/유지개수)', ()
     expect(store.getAll().some((i) => i.id === a.id)).toBe(false)
   })
 
+  it('(i-1) remove 는 핀 항목을 삭제하지 않고 false 를 돌려준다', () => {
+    const store = newStore()
+    const p = store.add({ content: 'p', type: 'text', createdAt: 1, pinned: true })
+
+    expect(store.remove(p.id)).toBe(false)
+    expect(store.size).toBe(1)
+
+    store.setPinned(p.id, false)
+    expect(store.remove(p.id)).toBe(true)
+    expect(store.size).toBe(0)
+  })
+
   it('(i-2) removeDuplicates 는 최신 비핀만 남기고 핀 항목은 보존한다', () => {
     const store = newStore()
     store.add({ content: 'same', type: 'text', createdAt: 10 })

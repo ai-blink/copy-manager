@@ -365,7 +365,7 @@ function registerIpc(s: ClipboardStore): void {
   // S5: 항목 삭제 — D13/D15(확인 모달은 렌더러에서 선행)
   ipcMain.handle('clip:delete', async (_event, rawId: unknown): Promise<boolean> => {
     if (typeof rawId !== 'string') return false
-    s.remove(rawId)
+    if (!s.remove(rawId)) return false // 없는 id 또는 핀 항목
     clearCaptureSuppression()
     await s.save()
     notifyRenderer()

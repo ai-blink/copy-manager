@@ -189,6 +189,7 @@ function buildCard(it: ClipItem, index: number): HTMLDivElement {
   delAct.className = 'act del'
   delAct.textContent = '🗑️'
   delAct.title = t(lang, 'card.delete')
+  if (it.pinned) delAct.hidden = true
   delAct.addEventListener('click', (e) => {
     e.stopPropagation()
     askDelete(it)
@@ -269,14 +270,18 @@ function render(): void {
   updateDragZone()
 }
 
+/** 핀 고정 정렬과 무관하게 "가장 최근 캡처"를 추적한다(맨 위 스크롤 판정용). */
+let latestSeen: { id: string; createdAt: number } | undefined
+
 async function reload(): Promise<void> {
   const hist = await window.copyManager.getHistory()
-  const previousLatest = items[0]
-  const nextItems = [...hist].reverse() // 최신 먼저
-  const nextLatest = nextItems[0]
+  const newestFirst = [...hist].reverse() // 최신 먼저
+  const nextLatest = newestFirst[0]
   const latestChanged =
-    nextLatest?.id !== previousLatest?.id || nextLatest?.createdAt !== previousLatest?.createdAt
-  items = nextItems
+    nextLatest?.id !== latestSeen?.id || nextLatest?.createdAt !== latestSeen?.createdAt
+  latestSeen = nextLatest ? { id: nextLatest.id, createdAt: nextLatest.createdAt } : undefined
+  // 핀 항목은 상단 고정(각 그룹 안에서는 최신 먼저 유지)
+  items = [...newestFirst.filter((it) => it.pinned), ...newestFirst.filter((it) => !it.pinned)]
   render()
   // 새 캡처와 재복사 승격(D34)은 항상 맨 위에서 보이게 한다.
   if (latestChanged) listEl.scrollTop = 0
@@ -463,6 +468,7 @@ async function togglePin(it: ClipItem): Promise<void> {
   await window.copyManager.pinItem(it.id, !it.pinned)
 }
 function askDelete(it: ClipItem): void {
+  if (it.pinned) return // 핀 항목은 삭제 불가 — 핀 해제 후 삭제
   askConfirm(
     t(lang, 'confirmDelete.title'),
     t(lang, 'confirmDelete.msg'),
