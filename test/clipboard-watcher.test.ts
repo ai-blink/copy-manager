@@ -12,6 +12,13 @@ describe('감시 프로세스 출력 해석(D43)', () => {
     expect(parseWatcherLine(`CHANGED ${b64}`)).toEqual({ kind: 'changed', text: '안녕 A\n둘째줄' })
   })
 
+  it('DIAG 줄은 진단 문구로 해석한다', () => {
+    expect(parseWatcherLine('DIAG read=214ms issue=lock-timeout')).toEqual({
+      kind: 'diag',
+      message: 'read=214ms issue=lock-timeout'
+    })
+  })
+
   it('깨진 payload 는 신호만 전달하고 알 수 없는 줄은 무시한다', () => {
     expect(parseWatcherLine('CHANGED !!not-base64!!')).toEqual({ kind: 'changed' })
     expect(parseWatcherLine('noise')).toBeNull()
@@ -60,6 +67,7 @@ describe('Windows 클립보드 변경 감시', () => {
     const previous = ps('Get-Clipboard -Raw')
     const marker = `snapshot-${Date.now()}`
     const seen: string[] = []
+    const diagnostics: string[] = []
     let markReady: () => void = () => undefined
     const ready = new Promise<void>((resolve) => (markReady = resolve))
     const watcher = startWindowsClipboardWatcher({
@@ -67,7 +75,8 @@ describe('Windows 클립보드 변경 감시', () => {
         if (text !== undefined) seen.push(text)
       },
       onReady: markReady,
-      onError: () => undefined
+      onError: () => undefined,
+      onDiagnostic: (message) => diagnostics.push(message)
     })
     try {
       await ready
@@ -75,8 +84,12 @@ describe('Windows 클립보드 변경 감시', () => {
       // (감시 프로세스 자신의 메시지 처리보다 빠른 덮어쓰기는 원리상 못 잡는다 — 간격을 그 아래로 줄이지 않는다.)
       ps(`Set-Clipboard -Value '${marker}-A'; Start-Sleep -Milliseconds 150; Set-Clipboard -Value '${marker}-B'`)
       await new Promise((r) => setTimeout(r, 1_500))
-      expect(seen).toContain(`${marker}-A`)
-      expect(seen).toContain(`${marker}-B`)
+      // ⚠️ 여기서 간헐 실패하면 sleep 을 늘리지 말 것 (2026-10-29 오인 사례). 그때 원인은 테스트 타이밍이 아니라
+      // 감시 프로세스의 스냅샷 읽기 지연(Clipboard.GetText 의 100ms 재시도)이라 A 이벤트가 B 를 읽은 것이었다.
+      // 실패 메시지의 seen(받은 스냅샷)과 diagnostics(DIAG: read=ms issue=)로 읽기 지연부터 확인한다.
+      const detail = `seen=${JSON.stringify(seen)} diagnostics=${JSON.stringify(diagnostics)}`
+      expect(seen, detail).toContain(`${marker}-A`)
+      expect(seen, detail).toContain(`${marker}-B`)
     } finally {
       watcher.stop()
       ps(`Set-Clipboard -Value '${previous.replace(/'/g, "''").trimEnd()}'`)

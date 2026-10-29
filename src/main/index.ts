@@ -228,6 +228,8 @@ function startClipboardWatcher(s: ClipboardStore): void {
       setClipboardPolling(s, HEALTHY_POLL_INTERVAL_MS)
       console.info('[copy-manager] Windows 클립보드 변경 감시 시작')
     },
+    // 스냅샷 읽기가 50ms 이상 걸렸거나 실패한 경우만 온다 — 연속 복사 유실 의심 시 가장 먼저 볼 로그.
+    onDiagnostic: (message) => console.warn('[copy-manager] 클립보드 스냅샷 진단:', message),
     onError: (err) => {
       console.warn('[copy-manager] 변경 감시 실패 — 250ms 폴링 유지 후 재시작 예정:', err)
       setClipboardPolling(s, POLL_INTERVAL_MS)
