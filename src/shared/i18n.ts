@@ -47,6 +47,8 @@ const en = {
     title: 'Details',
     close: 'Close',
     pin: '📌 Pin',
+    edit: '✏️ Edit',
+    save: '💾 Save',
     delete: '🗑️ Delete',
     paste: 'Paste'
   },
@@ -209,6 +211,8 @@ const ko: Dict = {
     title: '상세 보기',
     close: '닫기',
     pin: '📌 핀',
+    edit: '✏️ 수정',
+    save: '💾 저장',
     delete: '🗑️ 삭제',
     paste: '붙여넣기'
   },

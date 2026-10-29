@@ -481,12 +481,17 @@ function askDelete(it: ClipItem): void {
 
 // 상세 모달 (D14)
 let detailItem: ClipItem | null = null
+let detailEditing = false
+const detailEditBtn = $<HTMLButtonElement>('detailEdit')
 function openDetail(it: ClipItem): void {
   detailItem = it
   $('detailType').textContent =
     `${typeLabel(it.type)} · ${timeAgo(it.createdAt)}${it.pinned ? ' · 📌' : ''}`
   const wrap = $<HTMLDivElement>('detailWrap')
   wrap.innerHTML = ''
+  detailEditing = false
+  detailEditBtn.textContent = t(lang, 'detail.edit')
+  detailEditBtn.hidden = it.type === 'image' // 이미지는 수정 불가
   if (it.type === 'image') {
     const thumb = document.createElement('div')
     thumb.className = 'detail-thumb'
@@ -500,6 +505,29 @@ function openDetail(it: ClipItem): void {
   }
   openOverlay('detailOverlay')
 }
+// 수정 버튼: 첫 클릭=편집창으로 전환, 두 번째 클릭=저장(변경은 history:changed → reload 로 반영)
+detailEditBtn.addEventListener('click', () => {
+  const it = detailItem
+  if (!it || it.type === 'image') return
+  const wrap = $<HTMLDivElement>('detailWrap')
+  if (!detailEditing) {
+    const ta = document.createElement('textarea')
+    ta.className = 'detail-edit'
+    ta.value = it.content
+    wrap.innerHTML = ''
+    wrap.appendChild(ta)
+    detailEditing = true
+    detailEditBtn.textContent = t(lang, 'detail.save')
+    ta.focus()
+    return
+  }
+  const ta = wrap.querySelector('textarea')
+  if (!ta) return
+  const next = ta.value
+  if (next.trim().length === 0) return // 빈 메모로는 저장하지 않는다
+  closeOverlay($('detailOverlay'))
+  if (next !== it.content) void window.copyManager.editItem(it.id, next)
+})
 $('detailPaste').addEventListener('click', () => {
   const it = detailItem
   closeOverlay($('detailOverlay'))

@@ -362,6 +362,16 @@ function registerIpc(s: ClipboardStore): void {
     return true
   })
 
+  // 메모(텍스트 항목) 내용 수정 — 상세 모달의 수정/저장
+  ipcMain.handle('item:edit', async (_event, raw: unknown): Promise<boolean> => {
+    const { id, content } = (raw ?? {}) as { id?: unknown; content?: unknown }
+    if (typeof id !== 'string' || typeof content !== 'string') return false
+    if (!s.updateContent(id, content)) return false
+    await s.save()
+    notifyRenderer()
+    return true
+  })
+
   // S5: 항목 삭제 — D13/D15(확인 모달은 렌더러에서 선행)
   ipcMain.handle('clip:delete', async (_event, rawId: unknown): Promise<boolean> => {
     if (typeof rawId !== 'string') return false

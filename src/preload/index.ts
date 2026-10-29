@@ -30,6 +30,9 @@ const api = {
   /** 항목 핀 토글(카드 📌/우클릭/상세) — D7/D13 */
   pinItem: (id: string, pinned: boolean): Promise<boolean> =>
     ipcRenderer.invoke('item:pin', { id, pinned }),
+  /** 텍스트 항목 내용 수정(상세 모달) */
+  editItem: (id: string, content: string): Promise<boolean> =>
+    ipcRenderer.invoke('item:edit', { id, content }),
   /** 항목 삭제 — D13/D15 */
   deleteItem: (id: string): Promise<boolean> => ipcRenderer.invoke('clip:delete', id),
   /** 모두 지우기(핀 제외) — D15 */

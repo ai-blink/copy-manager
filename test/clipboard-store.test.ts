@@ -306,6 +306,23 @@ describe('ClipboardStore S5 메서드 (삭제/모두지우기/유지개수)', ()
     expect(store.size).toBe(0)
   })
 
+  it('(i-1b) updateContent 는 내용·타입만 바꾸고 id·핀·시각은 유지하며 이미지·빈 내용은 거부한다', () => {
+    const store = newStore()
+    const a = store.add({ content: 'old', type: 'text', createdAt: 5, pinned: true })
+    const img = store.add({ content: 'data:image/png;base64,AAAA', type: 'image', createdAt: 6 })
+
+    const updated = store.updateContent(a.id, 'https://example.com')
+    expect(updated?.content).toBe('https://example.com')
+    expect(updated?.type).toBe('link')
+    expect(updated?.id).toBe(a.id)
+    expect(updated?.pinned).toBe(true)
+    expect(updated?.createdAt).toBe(5)
+
+    expect(store.updateContent(a.id, '   ')).toBeUndefined()
+    expect(store.updateContent(img.id, 'x')).toBeUndefined()
+    expect(store.updateContent('none', 'x')).toBeUndefined()
+  })
+
   it('(i-2) removeDuplicates 는 최신 비핀만 남기고 핀 항목은 보존한다', () => {
     const store = newStore()
     store.add({ content: 'same', type: 'text', createdAt: 10 })

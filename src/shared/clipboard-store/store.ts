@@ -124,6 +124,18 @@ export class ClipboardStore {
     if (!pinned) this.evict()
   }
 
+  /**
+   * 텍스트 계열 항목의 내용을 수정한다. id·핀·createdAt 은 유지하고 type 만 재분류한다.
+   * 이미지이거나 공백뿐인 내용은 거부한다.
+   */
+  updateContent(id: string, content: string): ClipItem | undefined {
+    const it = this.items.find((i) => i.id === id)
+    if (!it || it.type === 'image' || content.trim().length === 0) return undefined
+    it.content = content
+    it.type = classifyText(content)
+    return it
+  }
+
   /** id 항목 삭제. 핀 항목은 삭제하지 않는다(핀을 먼저 해제해야 함). */
   remove(id: string): boolean {
     const target = this.items.find((i) => i.id === id)
